@@ -1,0 +1,6 @@
+point 1.
+need to add reports section insights professionlay order by data order by between dates , order by client , order by product. must show 
+create reports as professionaly use prk instead of $ with price if need. and assign to reports. 
+
+point 2. 
+in draft order instead of show items add 2 buttons and one for this order item UI and button 2 for layout-2 will discus later about this button implementaion. 

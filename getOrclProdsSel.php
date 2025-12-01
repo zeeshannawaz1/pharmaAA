@@ -1,0 +1,42 @@
+<?php
+
+$dbstr=" 
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.10.245)(PORT = 1521))
+    (CONNECT_DATA = (SID = orcl))
+  )";
+  global $conn;
+  $conn=oci_connect("mednew","mednew",$dbstr);
+  if (!$conn){
+	  $e=oci_error();
+	  trigger_error(htmlentities($e['message'],ENT_QUOTES),E_USER_ERROR);
+  }
+  global $conn;
+  
+  $p_prcode = $_GET['p_prcode'];  
+  $p_prgcode = $_GET['p_prgcode'];  
+  
+  $q = "select prcode , pcode, replace(replace(pname,',', '-'),'''','`') PNAME, nvl(tprice,0) TPRICE, nvl(DISTDISC,0) PDISC from c_prod";  
+  $q .= " where prcode = nvl(" .$p_prcode .", prcode)";
+  $q .= " and prgcode = nvl(" .$p_prgcode .", prgcode) AND PRCODE NOT IN (5,17) AND NVL(ACTIVE_STATUS,'Y') = 'Y'";
+  
+  /*if ($p_prcode == null)
+  {
+	  $q .= "";
+  }
+  else
+  {
+  $q .= " where prcode = " .$p_prcode;
+  }
+   */
+$sql  = oci_parse($conn, $q);
+
+oci_execute($sql);
+
+$rows = array();
+while($r = oci_fetch_assoc($sql)) {
+$rows[] = $r;
+ }
+$prod =(json_encode($rows));
+echo $prod;
+?>

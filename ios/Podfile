@@ -1,0 +1,86 @@
+# Uncomment this line to define a global platform for your project
+# platform :ios, '12.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    
+    # Fix for gRPC-Core template argument issue in newer Xcode versions
+    target.build_configurations.each do |config|
+      # Set C++ standard to C++17 for better compatibility
+      config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+      config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+      
+      # Disable strict template checking that causes the gRPC-Core error
+      config.build_settings['GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS'] = 'NO'
+    end
+  end
+  
+  # Patch gRPC-Core basic_seq.h file to fix template argument error
+  # This fixes: "A template argument list is expected after a name prefixed by the template keyword"
+  grpc_file_path = File.join(installer.sandbox.root, 'gRPC-Core/src/core/lib/promise/detail/basic_seq.h')
+  if File.exist?(grpc_file_path)
+    puts "Patching gRPC-Core basic_seq.h for Xcode compatibility..."
+    file_content = File.read(grpc_file_path)
+    original_content = file_content.dup
+    
+    # Fix the problematic template call - handle variations in whitespace
+    # Pattern matches: return Traits::template CallSeqFactory(f_, *cur_, std::move(arg));
+    problematic_pattern = /return\s+Traits::template\s+CallSeqFactory\s*\(f_,\s*\*cur_,\s*std::move\(arg\)\);/
+    correct_line = 'return Traits::template CallSeqFactory<>(f_, *cur_, std::move(arg));'
+    
+    if file_content.match?(problematic_pattern)
+      file_content.gsub!(problematic_pattern, correct_line)
+      File.open(grpc_file_path, 'w') { |file| file.puts file_content }
+      puts "✓ Successfully patched gRPC-Core basic_seq.h"
+    else
+      # Try alternative pattern without the template keyword issue
+      alt_pattern = /Traits::template\s+CallSeqFactory\s*\(/
+      if file_content.match?(alt_pattern) && !file_content.include?('CallSeqFactory<>')
+        # More aggressive fix - find and fix any CallSeqFactory calls without <>
+        file_content.gsub!(/(Traits::template\s+CallSeqFactory)\s*\(/, '\1<>(', file_content)
+        File.open(grpc_file_path, 'w') { |file| file.puts file_content }
+        puts "✓ Successfully patched gRPC-Core basic_seq.h (alternative pattern)"
+      else
+        puts "⚠ gRPC-Core basic_seq.h pattern not found (may already be patched or version changed)"
+      end
+    end
+  else
+    puts "⚠ gRPC-Core basic_seq.h not found at expected path (may not be using gRPC-Core)"
+  end
+end
