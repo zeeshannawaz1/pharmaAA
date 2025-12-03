@@ -2,16 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:io';
 
 import '../../domain/entities/order_draft.dart';
 import '../bloc/order_draft_bloc.dart';
 import '../../../../injection_container.dart' as di;
-import '../../../../core/widgets/location_tracker_widget.dart';
-import '../../../../core/widgets/all_users_location_widget.dart';
-import '../../../../core/widgets/booking_man_tracker_widget.dart';
 
 class OrderSummaryPage extends StatefulWidget {
   const OrderSummaryPage({super.key});
@@ -26,57 +20,13 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   List<String> _availableClients = [];
   List<OrderDraft> _allOrders = [];
   Map<String, dynamic> _summaryData = {};
-  String? _currentUserId;
 
 
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserData();
-  }
-
-  Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final username = prefs.getString('user_name');
-    setState(() {
-      _currentUserId = username;
-    });
-    print('OrderSummaryPage - Loaded user: $_currentUserId');
-  }
 
   void _extractClients() {
-    // Extract clients from all orders (both posted and draft) based on selected period
-    final now = DateTime.now();
-    List<OrderDraft> filteredOrders = _allOrders;
-
-    // Apply the same period filtering logic as in _calculateSummary
-    switch (_selectedPeriod) {
-      case 'today':
-        filteredOrders = filteredOrders.where((order) {
-          return order.createdAt.year == now.year &&
-                 order.createdAt.month == now.month &&
-                 order.createdAt.day == now.day;
-        }).toList();
-        break;
-      case 'weekly':
-        final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        filteredOrders = filteredOrders.where((order) {
-          return order.createdAt.isAfter(weekStart.subtract(const Duration(days: 1)));
-        }).toList();
-        break;
-      case 'monthly':
-        final monthStart = DateTime(now.year, now.month, 1);
-        filteredOrders = filteredOrders.where((order) {
-          return order.createdAt.isAfter(monthStart.subtract(const Duration(days: 1)));
-        }).toList();
-        break;
-      case 'all':
-        // No date filtering
-        break;
-    }
-
-    final clients = filteredOrders.map((order) => order.clientName).toSet().toList();
+    // Only extract clients from posted/confirmed orders
+    final postedOrders = _allOrders.where((order) => order.isConfirmedForProcessing == true).toList();
+    final clients = postedOrders.map((order) => order.clientName).toSet().toList();
     clients.sort();
     setState(() {
       _availableClients = clients;
@@ -92,8 +42,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       filteredOrders = filteredOrders.where((order) => order.clientName == _selectedClient).toList();
     }
 
-    // Show all orders (both posted and draft) - removed filter for posted orders only
-    // filteredOrders = filteredOrders.where((order) => order.isConfirmedForProcessing == true).toList();
+    // Filter to only show posted/confirmed orders
+    filteredOrders = filteredOrders.where((order) => order.isConfirmedForProcessing == true).toList();
 
     // Filter by period
     switch (_selectedPeriod) {
@@ -127,19 +77,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     double totalSubTotal = 0;
     double totalDiscount = 0;
     int orderCount = filteredOrders.length;
-    int postedOrderCount = 0;
-    int draftOrderCount = 0;
     Map<String, int> clientOrderCount = {};
     Map<String, double> clientRevenue = {};
 
     for (var order in filteredOrders) {
-      // Count posted vs draft orders
-      if (order.isConfirmedForProcessing == true) {
-        postedOrderCount++;
-      } else {
-        draftOrderCount++;
-      }
-
       // Client statistics
       clientOrderCount[order.clientName] = (clientOrderCount[order.clientName] ?? 0) + 1;
       clientRevenue[order.clientName] = (clientRevenue[order.clientName] ?? 0) + order.totalAmount;
@@ -161,8 +102,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     setState(() {
       _summaryData = {
         'totalOrders': orderCount,
-        'postedOrders': postedOrderCount,
-        'draftOrders': draftOrderCount,
         'totalGross': totalGross,
         'totalNet': totalNet,
         'totalSubTotal': totalSubTotal,
@@ -200,50 +139,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
             foregroundColor: Colors.white,
             elevation: 2,
             actions: [
-              // Export CSV Button
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.file_download),
-                tooltip: 'Export to CSV',
-                onSelected: (value) {
-                  switch (value) {
-                    case 'export_all':
-                      _exportFilteredOrdersToCSV(context, false);
-                      break;
-                    case 'export_posted':
-                      _exportFilteredOrdersToCSV(context, true);
-                      break;
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'export_all',
-                    child: Row(
-                      children: [
-                        Icon(Icons.file_download, color: Colors.green),
-                        SizedBox(width: 8),
-                        Text('Export All Orders (${_selectedPeriod})'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'export_posted',
-                    child: Row(
-                      children: [
-                        Icon(Icons.file_download, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('Export Posted Only (${_selectedPeriod})'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              // Location Tracking Button - Only show for super users
-              if (_currentUserId != null && _currentUserId == 'Shaniji')
-                IconButton(
-                  icon: const Icon(Icons.location_on),
-                  onPressed: _showLocationTrackingDialog,
-                  tooltip: 'Location Tracking',
-                ),
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: () {
@@ -379,7 +274,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
             onChanged: (value) {
               setState(() {
                 _selectedPeriod = value!;
-                _extractClients();
                 _calculateSummary();
               });
             },
@@ -528,22 +422,22 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           Colors.blue,
         ),
         _buildStatCard(
-          'Posted Orders',
-          '${_summaryData['postedOrders'] ?? 0}',
-          Icons.cloud_done,
-          Colors.green,
-        ),
-        _buildStatCard(
-          'Draft Orders',
-          '${_summaryData['draftOrders'] ?? 0}',
-          Icons.edit_note,
-          Colors.orange,
-        ),
-        _buildStatCard(
           'Total Revenue',
           '${(_summaryData['totalGross'] ?? 0).toStringAsFixed(0)}',
           Icons.attach_money,
-          Colors.purple,
+          Colors.green,
+        ),
+        _buildStatCard(
+          'Total Net',
+          '${(_summaryData['totalNet'] ?? 0).toStringAsFixed(0)}',
+          Icons.account_balance_wallet,
+          Colors.orange,
+        ),
+        _buildStatCard(
+          'Total Discount',
+          '${(_summaryData['totalDiscount'] ?? 0).toStringAsFixed(0)}',
+          Icons.discount,
+          Colors.red,
         ),
       ],
     );
@@ -613,14 +507,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     DataCell(Text('${_summaryData['totalOrders'] ?? 0}')),
                   ]),
                   DataRow(cells: [
-                    const DataCell(Text('Posted Orders')),
-                    DataCell(Text('${_summaryData['postedOrders'] ?? 0}')),
-                  ]),
-                  DataRow(cells: [
-                    const DataCell(Text('Draft Orders')),
-                    DataCell(Text('${_summaryData['draftOrders'] ?? 0}')),
-                  ]),
-                  DataRow(cells: [
                     const DataCell(Text('Gross Amount')),
                     DataCell(Text('${(_summaryData['totalGross'] ?? 0).toStringAsFixed(0)}')),
                   ]),
@@ -681,11 +567,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    order.isConfirmedForProcessing ? Icons.cloud_done : Icons.edit_note,
-                    color: order.isConfirmedForProcessing ? Colors.green.shade600 : Colors.orange.shade600,
-                    size: 20,
-                  ),
+                  Icon(Icons.shopping_bag, color: Colors.blue.shade600, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -699,7 +581,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                           ),
                         ),
                         Text(
-                          '${order.items.length} items • ${order.totalAmount.toStringAsFixed(0)} • ${order.isConfirmedForProcessing ? "Posted" : "Draft"}',
+                          '${order.items.length} items • ${order.totalAmount.toStringAsFixed(0)}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
@@ -724,359 +606,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     );
   }
 
-  void _showLocationTrackingDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            height: MediaQuery.of(context).size.height * 0.8,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      color: Colors.indigo.shade600,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Location Tracking',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.indigo.shade700,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                      tooltip: 'Close',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Status indicator
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: Colors.green.shade600,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Location tracking active for user: $_currentUserId',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.green.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Location widgets
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Current user location
-                        Card(
-                          elevation: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.my_location,
-                                      color: Colors.blue.shade600,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'My Location',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                if (_currentUserId != null)
-                                  LocationTrackerWidget(userId: _currentUserId!),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // All users location
-                        Card(
-                          elevation: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.people,
-                                      color: Colors.orange.shade600,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'All Users Location',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                const AllUsersLocationWidget(),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Booking Man ID Tracker
-                        Card(
-                          elevation: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.track_changes,
-                                      color: Colors.indigo.shade600,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Booking Man ID Tracker',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.indigo.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                const BookingManTrackerWidget(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
-  // Export filtered orders to CSV based on selected period
-  Future<void> _exportFilteredOrdersToCSV(BuildContext context, bool postedOnly) async {
-    try {
-      final filteredOrders = _summaryData['filteredOrders'] as List<OrderDraft>? ?? [];
-      
-      // Filter for posted orders only if requested
-      final ordersToExport = postedOnly 
-          ? filteredOrders.where((order) => order.isConfirmedForProcessing == true).toList()
-          : filteredOrders;
 
-      if (ordersToExport.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ℹ️ No ${postedOnly ? 'posted ' : ''}orders found for ${_selectedPeriod}'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        return;
-      }
 
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('📊 Exporting ${postedOnly ? 'posted ' : ''}orders for ${_selectedPeriod} to CSV...'),
-          backgroundColor: Colors.blue,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
-      // Generate export data
-      List<Map<String, dynamic>> exportData = [];
-      
-      for (final order in ordersToExport) {
-        if (order.exportData != null && order.exportData!.isNotEmpty) {
-          // Use saved export data from confirmation
-          exportData.addAll(order.exportData!);
-        } else {
-          // Generate new export data (for draft orders)
-          for (final item in order.items) {
-            exportData.add({
-              'bo_id': _generateUniqueBoId(),
-              'bm_code': await _getBookingManId(),
-              'client_code': order.clientId,
-              'client_name': order.clientName,
-              'product_code': item.productId,
-              'product_name': item.productName,
-              'quantity': item.quantity,
-              'unit_price': item.unitPrice,
-              'total_price': item.totalPrice,
-              'discount': item.discount ?? 0,
-              'order_date': DateFormat('yyyy-MM-dd').format(order.createdAt),
-              'order_time': DateFormat('HH:mm:ss').format(order.createdAt),
-              'status': order.isConfirmedForProcessing ? 'Posted' : 'Draft',
-            });
-          }
-        }
-      }
-
-      // Create CSV content
-      final csvContent = _createCSVContent(exportData);
-      
-      // Get app documents directory
-      final appDocDir = await getApplicationDocumentsDirectory();
-      final bbsdDir = Directory('${appDocDir.path}/BBSD');
-      
-      // Create BBSD directory if it doesn't exist
-      if (!await bbsdDir.exists()) {
-        await bbsdDir.create(recursive: true);
-      }
-      
-      // Create filename based on period and type
-      final periodName = _selectedPeriod == 'today' ? 'today' : 
-                        _selectedPeriod == 'weekly' ? 'this_week' :
-                        _selectedPeriod == 'monthly' ? 'this_month' : 'all_time';
-      final typeName = postedOnly ? 'posted' : 'all';
-      final fileName = '${typeName}_orders_${periodName}.csv';
-      
-      // Remove existing CSV file if it exists
-      final csvFile = File('${bbsdDir.path}/$fileName');
-      if (await csvFile.exists()) {
-        await csvFile.delete();
-      }
-      
-      // Create new CSV file
-      await csvFile.writeAsString(csvContent);
-      
-      print('✅ CSV exported successfully: ${csvFile.path}');
-      print('📊 Exported ${exportData.length} records for ${ordersToExport.length} orders');
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '✅ CSV exported successfully!',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text('📁 Location: ${csvFile.path}'),
-              Text('📊 ${exportData.length} records from ${ordersToExport.length} orders'),
-              Text('📅 Period: ${_selectedPeriod}'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'Share',
-            onPressed: () => _shareCSVFile(csvFile),
-          ),
-        ),
-      );
-      
-    } catch (e) {
-      print('Error exporting CSV: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error exporting CSV: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  // Generate unique 8-digit BO ID
-  int _generateUniqueBoId() {
-    final random = DateTime.now().millisecondsSinceEpoch % 100000000;
-    return 10000000 + random;
-  }
-
-  // Get booking man ID
-  Future<String> _getBookingManId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_id') ?? 'BM001';
-  }
-
-  // Create CSV content
-  String _createCSVContent(List<Map<String, dynamic>> exportData) {
-    if (exportData.isEmpty) return '';
-    
-    // Get headers from the first record
-    final headers = exportData.first.keys.toList();
-    
-    // Create CSV content
-    final csvBuffer = StringBuffer();
-    
-    // Add headers
-    csvBuffer.writeln(headers.join(','));
-    
-    // Add data rows
-    for (final record in exportData) {
-      final row = headers.map((header) => record[header]?.toString() ?? '').join(',');
-      csvBuffer.writeln(row);
-    }
-    
-    return csvBuffer.toString();
-  }
-
-  // Share CSV file
-  Future<void> _shareCSVFile(File csvFile) async {
-    try {
-      await Share.shareXFiles(
-        [XFile(csvFile.path)],
-        text: 'Order Summary CSV Export',
-      );
-    } catch (e) {
-      print('Error sharing CSV file: $e');
-    }
-  }
 } 

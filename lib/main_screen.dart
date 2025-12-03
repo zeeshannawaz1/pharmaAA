@@ -35,7 +35,6 @@ import 'core/services/town_area_service.dart';
 import 'package:collection/collection.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:aa_app/main.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -48,7 +47,6 @@ import 'features/reports/porder_page.dart';
 import 'features/sales_order/presentation/pages/confirmed_orders_page.dart';
 import 'core/services/auth_service.dart';
 import 'features/insights/presentation/pages/insights_page.dart';
-import 'core/widgets/location_tracker_widget.dart';
 
 class MainScreen extends StatefulWidget {
   final String userName;
@@ -67,7 +65,7 @@ class _MainScreenState extends State<MainScreen> {
   // Global state for order form
   List<Client> _orderClients = [];
   List<Product> _orderProducts = [];
-  bool _orderLoading = true;
+  bool _orderLoading = false;
   String? _selectedClientCode;
   Client? _selectedClient;
   String _clientSearch = '';
@@ -542,6 +540,12 @@ class _MainScreenState extends State<MainScreen> {
       case 0:
         return _DashboardContent(userName: widget.userName, onSync: () => _showSyncDialog(context));
       case 1:
+        // Automatically load data when order tab is accessed for the first time
+        if (_orderClients.isEmpty && _orderProducts.isEmpty && !_orderLoading) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _loadOrderData();
+          });
+        }
         return BlocProvider(
           create: (context) => sl<OrderDraftBloc>()..add(const OrderDraftEvent.loadDrafts()),
           child: Column(
@@ -1007,15 +1011,10 @@ class _OrderPageContentState extends State<_OrderPageContent> {
   Client? _selectedClient;
   List<String> _cities = [];
   List<String> _areas = [];
-  List<String> _filteredAreas = []; // For area search
   bool _loadingCities = false;
   String? _citiesError;
   List<Map<String, String>> _allAreas = [];
   List<Map<String, String>> _allClients = [];
-  
-  // Controllers for search fields
-  final TextEditingController _areaSearchController = TextEditingController();
-  final FocusNode _areaFocusNode = FocusNode();
 
   Future<void> _loadAreas() async {
     try {
@@ -1194,29 +1193,7 @@ class _OrderPageContentState extends State<_OrderPageContent> {
     }
     setState(() {
       _areas = filteredAreas;
-      _filteredAreas = filteredAreas; // Initialize filtered areas for search
     });
-  }
-
-
-
-  void _filterAreas(String searchText) {
-    setState(() {
-      if (searchText.isEmpty) {
-        _filteredAreas = _areas;
-      } else {
-        _filteredAreas = _areas
-            .where((area) => area.toLowerCase().contains(searchText.toLowerCase()))
-            .toList();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _areaSearchController.dispose();
-    _areaFocusNode.dispose();
-    super.dispose();
   }
 
   void _onAreaSelected(String? area) {
@@ -1225,11 +1202,11 @@ class _OrderPageContentState extends State<_OrderPageContent> {
       _selectedClient = null;
     });
     // Debug: Print selected city and area
-    print('[DEBUG] Selected city: $_selectedCity, area: $_selectedArea');
+    print('[DEBUG] Selected city: [36m$_selectedCity[0m, area: [36m$_selectedArea[0m');
     // Debug: Print sample client names
     print('[DEBUG] Sample client names:');
     for (var c in _allClients.take(5)) {
-      print('  ${c['CLIENTNAME']}');
+      print('  [36m${c['CLIENTNAME']}[0m');
     }
     // Filter clients by selected city and area using substring match in CLIENTNAME
     List<Map<String, String>> filteredClients = [];
@@ -1240,10 +1217,10 @@ class _OrderPageContentState extends State<_OrderPageContent> {
         final name = client['CLIENTNAME']?.toLowerCase() ?? '';
         return name.contains(city) && name.contains(areaStr);
       }).toList();
-      print('[DEBUG] Filtered clients for city/area (substring match): count = ${filteredClients.length}');
+      print('[DEBUG] Filtered clients for city/area (substring match): count = [32m${filteredClients.length}[0m');
       for (var i = 0; i < (filteredClients.length < 5 ? filteredClients.length : 5); i++) {
         final c = filteredClients[i];
-        print('  ${i+1}. code: ${c['CLIENTCODE']}, name: ${c['CLIENTNAME']}');
+        print('  \\${i+1}. code: \\${c['CLIENTCODE']}, name: \\${c['CLIENTNAME']}');
       }
     }
     setState(() {
@@ -1431,84 +1408,14 @@ class _OrderPageContentState extends State<_OrderPageContent> {
                           decoration: const InputDecoration(labelText: 'Select City', border: OutlineInputBorder()),
                         ),
                         const SizedBox(height: 16),
-                        // AREA SEARCH FIELD
+                        // AREA DROPDOWN
                         if (_selectedCity != null)
-                        RawAutocomplete<String>(
-                          textEditingController: _areaSearchController,
-                          focusNode: _areaFocusNode,
-                          optionsBuilder: (TextEditingValue textEditingValue) {
-                            final input = textEditingValue.text.toLowerCase();
-                            if (input.isEmpty) return _filteredAreas;
-                            return _filteredAreas.where((area) =>
-                              area.toLowerCase().contains(input)
-                            ).toList();
-                          },
-                          displayStringForOption: (String area) => area,
-                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                            return TextFormField(
-                              controller: controller,
-                              focusNode: focusNode,
-                              decoration: const InputDecoration(
-                                labelText: 'Search Area',
-                                hintText: 'Type to search areas...',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.search),
-                                isDense: true,
-                              ),
-                              onChanged: (value) {
-                                _filterAreas(value);
-                              },
-                            );
-                          },
-                          optionsViewBuilder: (context, onSelected, options) {
-                            if (options.isEmpty) {
-                              return Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 8),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text('No area found'),
-                              );
-                            }
-                            return Align(
-                              alignment: Alignment.topLeft,
-                              child: Material(
-                                elevation: 4,
-                                child: SizedBox(
-                                  width: 350,
-                                  child: ListView.builder(
-                                    padding: EdgeInsets.zero,
-                                    shrinkWrap: true,
-                                    itemCount: options.length,
-                                    itemBuilder: (context, index) {
-                                      final area = options.elementAt(index);
-                                      return ListTile(
-                                        leading: const Icon(Icons.location_on, size: 20),
-                                        title: Text(
-                                          area,
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 1,
-                                        ),
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedArea = area;
-                                            _areaSearchController.text = area;
-                                          });
-                                          _onAreaSelected(area);
-                                          // Unfocus to close the dropdown
-                                          _areaFocusNode.unfocus();
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                        DropdownButtonFormField<String>(
+                          value: _selectedArea,
+                            items: _areas.map((area) => DropdownMenuItem(value: area, child: Text(area))).toList(),
+                            onChanged: _onAreaSelected,
+                            decoration: const InputDecoration(labelText: 'Select Area', border: OutlineInputBorder()),
+                          ),
                         const SizedBox(height: 16),
                         // CLIENT DROPDOWN
                         if (_selectedCity != null && _selectedArea != null)
@@ -1613,7 +1520,7 @@ class _OrderPageContentState extends State<_OrderPageContent> {
                   child: Row(
                     children: [
                       Expanded(flex: 2, child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center)),
-                    //  Expanded(child: Text('Pak', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center)),
+                      Expanded(child: Text('Pak', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center)),
                       Expanded(child: Text('Qty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center)),
                       Expanded(child: Text('Bon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center)),
                       Expanded(child: Text('PR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center)),
@@ -1663,26 +1570,26 @@ class _OrderPageContentState extends State<_OrderPageContent> {
                                 ),
                               ),
                             ),
-                            //const SizedBox(width: 4),
+                            const SizedBox(width: 4),
                                                                                     // Packing Field (under "Pak" title)
-                            // Expanded(
-                            //   child: SizedBox(
-                            //   height: 30,
-                            //     child: TextFormField(
-                            //       initialValue: line.packing?.isNotEmpty == true ? line.packing : 'Tab',
-                            //       decoration: InputDecoration(
-                            //         contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                            //         border: OutlineInputBorder(),
-                            //         hintText: 'Pak',
-                            //       ),
-                            //       style: TextStyle(fontSize: 10),
-                            //       onChanged: (val) {
-                            //         final updatedLine = line.copyWith(packing: val);
-                            //         widget.onOrderLineChanged(index, updatedLine);
-                            //       },
-                            //     ),
-                            //   ),
-                            // ),
+                            Expanded(
+                              child: SizedBox(
+                              height: 30,
+                                child: TextFormField(
+                                  initialValue: line.packing?.isNotEmpty == true ? line.packing : 'Tab',
+                                  decoration: InputDecoration(
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                    border: OutlineInputBorder(),
+                                    hintText: 'Pak',
+                                  ),
+                                  style: TextStyle(fontSize: 10),
+                                  onChanged: (val) {
+                                    final updatedLine = line.copyWith(packing: val);
+                                    widget.onOrderLineChanged(index, updatedLine);
+                                  },
+                                ),
+                              ),
+                            ),
                             const SizedBox(width: 4),
                             // Quantity Field (under "Qty" title)
                             Expanded(
@@ -3554,7 +3461,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
 Future<bool> fetchShowAdsFlag() async {
   try {
-    final ref = FirebaseDatabase.instance.refFromURL('https://nailart-a9fb4-default-rtdb.firebaseio.com/show_ads');
+    final ref = FirebaseDatabase.instance.refFromURL('https://pkdriver-and-default-rtdb.firebaseio.com/show_ads');
     final snapshot = await ref.get();
     if (snapshot.exists && (snapshot.value is bool || snapshot.value is int)) {
       // Accept both bool and int (1/0) for flexibility
@@ -3569,7 +3476,7 @@ Future<bool> fetchShowAdsFlag() async {
 
 Future<bool> fetchShowInterstitialFlag() async {
   try {
-    final ref = FirebaseDatabase.instance.refFromURL('https://nailart-a9fb4-default-rtdb.firebaseio.com/show_interstitial');
+    final ref = FirebaseDatabase.instance.refFromURL('https://pkdriver-and-default-rtdb.firebaseio.com/show_interstitial');
     final snapshot = await ref.get();
     if (snapshot.exists && (snapshot.value is bool || snapshot.value is int)) {
       if (snapshot.value is bool) return snapshot.value as bool;

@@ -143,6 +143,7 @@ class _OrderBookingLayoutFormState extends State<OrderBookingLayoutForm> {
                         children: [
                           _tableHeader('Sr.#'),
                           _tableHeader('Product Name:'),
+                          _tableHeader('Packing'),
                           _tableHeader('Order Qnty.'),
                           _tableHeader('Bonus'),
                           _tableHeader('Disc.%'),
@@ -168,6 +169,7 @@ class _OrderBookingLayoutFormState extends State<OrderBookingLayoutForm> {
                           5: FlexColumnWidth(2),
                           6: FlexColumnWidth(2),
                           7: FlexColumnWidth(2),
+                          8: FlexColumnWidth(2),
                         },
                         children: [
                           TableRow(
@@ -181,6 +183,7 @@ class _OrderBookingLayoutFormState extends State<OrderBookingLayoutForm> {
                                 },
                                 child: _tableCellField(item.product),
                               ),
+                              _tableCellField(item.packing),
                               _tableCellField(item.qty),
                               _tableCellField(item.bonus),
                               _tableCellField(item.disc),
@@ -234,6 +237,10 @@ class _OrderBookingLayoutFormState extends State<OrderBookingLayoutForm> {
                     Text(
                       'Product: 9${_items[_selectedRowIdx!].product.text.isNotEmpty ? _items[_selectedRowIdx!].product.text : 'No product selected.'}',
                       style: TextStyle(color: Colors.green[900], fontWeight: FontWeight.w500),
+                    ),
+                    Text(
+                      'Packing: ${_items[_selectedRowIdx!].packing.text}',
+                      style: TextStyle(color: Colors.green[900]),
                     ),
                     Text(
                       'Rate: ${_items[_selectedRowIdx!].rate.text}',
@@ -413,6 +420,7 @@ class _OrderBookingLayoutFormState extends State<OrderBookingLayoutForm> {
             totalPrice: totalPrice,
             discount: discount,
             bonus: bonus,
+            packing: item.packing.text.isNotEmpty ? item.packing.text : null,
           );
         })
         .toList();
@@ -463,6 +471,7 @@ class _OrderBookingLayoutFormState extends State<OrderBookingLayoutForm> {
 
 class _OrderItem {
   final TextEditingController product = TextEditingController();
+  final TextEditingController packing = TextEditingController();
   final TextEditingController qty = TextEditingController();
   final TextEditingController bonus = TextEditingController();
   final TextEditingController disc = TextEditingController();

@@ -15,7 +15,9 @@ allprojects {
     }
 }
 
-val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
+// Use absolute path based on project root to avoid cached path issues
+val projectRootBuildDir = rootProject.projectDir.parentFile.resolve("build")
+val newBuildDir = rootProject.layout.projectDirectory.dir(projectRootBuildDir.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {

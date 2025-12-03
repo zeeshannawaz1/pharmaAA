@@ -587,6 +587,8 @@ class _NewOrderFormPageState extends State<NewOrderFormPage> with SingleTickerPr
                                                   Flexible(child: Text('Code: ${prod.pcode}')),
                                                     const SizedBox(width: 12),
                                                   Flexible(child: Text('Price: ${prod.tprice}')),
+                                            const SizedBox(width: 12),
+                                                  Flexible(child: Text('Packing: ${prod.packing ?? 'N/A'}')),
                                           ],
                                         ),
                                         onTap: () => onSelected(name),
@@ -780,6 +782,7 @@ class _NewOrderFormPageState extends State<NewOrderFormPage> with SingleTickerPr
 
 class _OrderLine {
   String? product;
+  String? packing;
   int? qty;
   int? bonus;
   double? disc;

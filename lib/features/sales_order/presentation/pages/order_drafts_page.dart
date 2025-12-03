@@ -18,8 +18,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
 import 'package:cross_file/cross_file.dart';
-import '../../../../core/widgets/location_tracker_widget.dart';
-import '../../../../core/widgets/all_users_location_widget.dart';
 
 class OrderDraftsPage extends StatefulWidget {
   const OrderDraftsPage({Key? key}) : super(key: key);
@@ -63,7 +61,7 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
   Future<void> _loadUserData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final username = prefs.getString('user_name');
+      final username = prefs.getString('username');
       final bookingManId = prefs.getString('booking_man_id');
       
       setState(() {
@@ -72,7 +70,6 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
       });
       
       print('Loaded user data - Username: $_currentUserId, Booking Man ID: $_currentBookingManId');
-      print('Location tracking will be: ${_currentUserId == 'Shaniji' ? 'ENABLED' : 'DISABLED'}');
     } catch (e) {
       print('Error loading user data: $e');
       setState(() {
@@ -125,14 +122,11 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
               builder: (context, state) {
                 return PopupMenuButton<String>(
                   icon: const Icon(Icons.file_download),
-                  tooltip: 'Export Orders to CSV',
+                  tooltip: 'Export All Posted Orders to CSV',
                   onSelected: (value) {
                     switch (value) {
-                      case 'export_posted':
+                      case 'export':
                         _exportAllPostedOrdersToCSV(context, context.read<OrderDraftBloc>());
-                        break;
-                      case 'export_all':
-                        _exportAllOrdersToCSV(context, context.read<OrderDraftBloc>());
                         break;
                       case 'clear':
                         _clearExistingCSV(context);
@@ -141,22 +135,12 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
                   },
                   itemBuilder: (context) => [
                     const PopupMenuItem(
-                      value: 'export_posted',
+                      value: 'export',
                       child: Row(
                         children: [
                           Icon(Icons.file_download, color: Colors.blue),
                           SizedBox(width: 8),
                           Text('Export All Posted Orders'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'export_all',
-                      child: Row(
-                        children: [
-                          Icon(Icons.file_download, color: Colors.green),
-                          SizedBox(width: 8),
-                          Text('Export All Orders (Today)'),
                         ],
                       ),
                     ),
@@ -231,214 +215,81 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
             return Column(
               children: [
                 Expanded(child: mainView),
-                // Bottom section with location tracking and other widgets
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 300), // Limit height
-                  child: SingleChildScrollView(
+                if (_latestLog != null)
+                  Container(
+                    width: double.infinity,
+                    color: Colors.black.withOpacity(0.05),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Text(
+                      _latestLog!,
+                      style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    ),
+                  ),
+                // Selection summary widget
+                if (_isSelectionMode && _selectedDraftIds.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    color: Colors.blue.shade50,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Location Tracker Widget - Only show for admin users
-                        if (_currentUserId != null && _currentUserId == 'Shaniji') ...[
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            color: Colors.green.shade50,
-                            child: Column(
-                              children: [
-                                Text(
-                                  '🔍 Location Tracking Active (Super User: $_currentUserId)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green.shade700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                LocationTrackerWidget(userId: _currentUserId!),
-                                const SizedBox(height: 8),
-                                const AllUsersLocationWidget(),
-                              ],
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${_selectedDraftIds.length} draft(s) selected',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
                             ),
-                          ),
-                        ] else ...[
-                          // Debug info for non-admin users - DISABLED
-                          // Container(
-                          //   padding: const EdgeInsets.all(8),
-                          //   color: Colors.orange.shade50,
-                          //   child: Text(
-                          //     '🔒 Location Tracking Disabled (User: $_currentUserId) - Super User Access Required',
-                          //     style: TextStyle(
-                          //       fontSize: 12,
-                          //       color: Colors.orange.shade700,
-                          //   ),
-                          //   ),
-                          // ),
-                        ],
-                        if (_latestLog != null)
-                          Container(
-                            width: double.infinity,
-                            color: Colors.black.withOpacity(0.05),
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                            child: Text(
-                              _latestLog!,
-                              style: const TextStyle(fontSize: 12, color: Colors.black87),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedDraftIds.clear();
+                                });
+                              },
+                              child: const Text('Clear All'),
                             ),
-                          ),
-                        // Export All Orders button in bottom section - HIDDEN as requested by user
-                        // BlocBuilder<OrderDraftBloc, OrderDraftState>(
-                        //   builder: (context, state) {
-                        //     return state.maybeWhen(
-                        //       loaded: (drafts) {
-                        //         // Check if there are any orders for today
-                        //         final now = DateTime.now();
-                        //         bool isSameDay(DateTime a, DateTime b) =>
-                        //             a.year == b.year && a.month == b.month && a.day == b.day;
-                        //         final todayDrafts = drafts.where((d) => isSameDay(d.createdAt, now)).toList();
-                        //         
-                        //         if (todayDrafts.isEmpty) return const SizedBox.shrink();
-                        //         
-                        //         return Container(
-                        //           width: double.infinity,
-                        //           color: Colors.green.shade50,
-                        //           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                        //           child: Column(
-                        //             crossAxisAlignment: CrossAxisAlignment.start,
-                        //             children: [
-                        //               Row(
-                        //                 children: [
-                        //                   Icon(Icons.file_download, color: Colors.green.shade700, size: 20),
-                        //                   const SizedBox(width: 8),
-                        //                   Text(
-                        //                     'Export Options',
-                        //                     style: TextStyle(
-                        //                       fontSize: 14,
-                        //                       fontWeight: FontWeight.bold,
-                        //                       color: Colors.green.shade700,
-                        //                     ),
-                        //                   ),
-                        //                 ],
-                        //               ),
-                        //               const SizedBox(height: 8),
-                        //               Row(
-                        //                 children: [
-                        //                   Expanded(
-                        //                     child: ElevatedButton.icon(
-                        //                       onPressed: () => _exportAllOrdersToCSV(context, context.read<OrderDraftBloc>()),
-                        //                       icon: const Icon(Icons.file_download, size: 16),
-                        //                       label: const Text('Export All Orders (Today)'),
-                        //                       style: ElevatedButton.styleFrom(
-                        //                         backgroundColor: Colors.green,
-                        //                         foregroundColor: Colors.white,
-                        //                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        //                       ),
-                        //                     ),
-                        //                   ),
-                        //                   const SizedBox(width: 8),
-                        //                   Expanded(
-                        //                     child: ElevatedButton.icon(
-                        //                       onPressed: () => _exportAllPostedOrdersToCSV(context, context.read<OrderDraftBloc>()),
-                        //                       icon: const Icon(Icons.file_download, size: 16),
-                        //                       label: const Text('Export Posted Only'),
-                        //                       style: ElevatedButton.styleFrom(
-                        //                         backgroundColor: Colors.blue,
-                        //                         foregroundColor: Colors.white,
-                        //                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        //                       ),
-                        //                     ),
-                        //                   ),
-                        //                 ],
-                        //               ),
-                        //               const SizedBox(height: 4),
-                        //               Text(
-                        //                 '📊 ${todayDrafts.length} orders available for today (${todayDrafts.where((d) => d.isConfirmedForProcessing).length} posted, ${todayDrafts.where((d) => !d.isConfirmedForProcessing).length} drafts)',
-                        //                 style: TextStyle(
-                        //                   fontSize: 11,
-                        //                   color: Colors.green.shade600,
-                        //                 ),
-                        //               ),
-                        //             ],
-                        //           ),
-                        //         );
-                        //       },
-                        //       orElse: () => const SizedBox.shrink(),
-                        //     );
-                        //   },
-                        // ),
-                        // Selection summary widget
-                        if (_isSelectionMode && _selectedDraftIds.isNotEmpty)
-                          BlocBuilder<OrderDraftBloc, OrderDraftState>(
-                            builder: (context, state) {
-                              return state.maybeWhen(
-                                loaded: (drafts) => Container(
-                                  width: double.infinity,
-                                  color: Colors.blue.shade50,
-                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(Icons.check_circle, color: Colors.blue.shade700, size: 20),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            '${_selectedDraftIds.length} draft(s) selected',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue.shade700,
-                                            ),
-                                          ),
-                                          const Spacer(),
-                                          TextButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                _selectedDraftIds.clear();
-                                              });
-                                            },
-                                            child: const Text('Clear All'),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: ElevatedButton.icon(
-                                              onPressed: () => _postAllSelectedDrafts(drafts),
-                                              icon: const Icon(Icons.cloud_upload, size: 16),
-                                              label: const Text('Post to Server'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.green,
-                                                foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: ElevatedButton.icon(
-                                              onPressed: () => _exportSelectedDraftsToCSV(drafts),
-                                              icon: const Icon(Icons.file_download, size: 16),
-                                              label: const Text('Export to CSV'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.orange,
-                                                foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _postAllSelectedDrafts,
+                                icon: const Icon(Icons.cloud_upload, size: 16),
+                                label: const Text('Post to Server'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
                                 ),
-                                orElse: () => const SizedBox.shrink(),
-                              );
-                            },
-                          ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _exportSelectedDraftsToCSV,
+                                icon: const Icon(Icons.file_download, size: 16),
+                                label: const Text('Export to CSV'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                ),
               ],
             );
           },
@@ -460,7 +311,7 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
                       children: [
                         Flexible(
                           child: FloatingActionButton.extended(
-                            onPressed: _selectedDraftIds.isEmpty ? null : () => _postAllSelectedDrafts(drafts),
+                            onPressed: _selectedDraftIds.isEmpty ? null : _postAllSelectedDrafts,
                             backgroundColor: _selectedDraftIds.isEmpty ? Colors.grey : Colors.green,
                             icon: const Icon(Icons.cloud_upload),
                             label: Text('Post ${_selectedDraftIds.length}'),
@@ -470,7 +321,7 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
                         const SizedBox(width: 8),
                         Flexible(
                           child: FloatingActionButton.extended(
-                            onPressed: _selectedDraftIds.isEmpty ? null : () => _exportSelectedDraftsToCSV(drafts),
+                            onPressed: _selectedDraftIds.isEmpty ? null : _exportSelectedDraftsToCSV,
                             backgroundColor: _selectedDraftIds.isEmpty ? Colors.grey : Colors.orange,
                             icon: const Icon(Icons.file_download),
                             label: Text('Export ${_selectedDraftIds.length}'),
@@ -488,8 +339,14 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
                     ),
                   );
                 } else {
-                  // Normal mode - hide selection button
-                  return const SizedBox.shrink();
+                  // Normal mode - show selection button
+                  return FloatingActionButton.extended(
+                    onPressed: () => _enterSelectionMode(),
+                    backgroundColor: Colors.blue,
+                    icon: const Icon(Icons.select_all),
+                    label: const Text('Select Drafts'),
+                    tooltip: 'Select multiple drafts for bulk operations',
+                  );
                 }
               },
               orElse: () => const SizedBox.shrink(),
@@ -582,98 +439,6 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
     );
   }
 
-  // Export all orders (both posted and draft) for today to CSV
-  Future<void> _exportAllOrdersToCSV(BuildContext context, OrderDraftBloc bloc) async {
-    try {
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📊 Exporting all orders for today to CSV...'),
-          backgroundColor: Colors.blue,
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      // Get all orders for today (both posted and draft)
-      final allOrders = await _getAllOrdersForToday(context, bloc);
-      
-      if (allOrders.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ℹ️ No orders found for today\n\nTo test CSV export:\n1. Create an order\n2. Save it as draft or confirm it\n3. Try export again'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'Create Test Data',
-              onPressed: () => _createTestOrderData(context, bloc),
-            ),
-          ),
-        );
-        return;
-      }
-
-      // Create CSV content
-      final csvContent = _createCSVContent(allOrders);
-      
-      // Get app documents directory
-      final appDocDir = await getApplicationDocumentsDirectory();
-      final bbsdDir = Directory('${appDocDir.path}/BBSD');
-      
-      // Create BBSD directory if it doesn't exist
-      if (!await bbsdDir.exists()) {
-        await bbsdDir.create(recursive: true);
-      }
-      
-      // Remove existing CSV file if it exists
-      final csvFile = File('${bbsdDir.path}/all_orders_today.csv');
-      if (await csvFile.exists()) {
-        await csvFile.delete();
-        print('🗑️ Removed existing CSV file');
-      }
-      
-      // Create new CSV file
-      await csvFile.writeAsString(csvContent);
-      print('✅ Created new CSV file: ${csvFile.path}');
-      
-      // Also copy to external storage for better sharing
-      await _copyToExternalStorage(csvFile.path, csvContent);
-      
-      // Show success message with View and Share buttons
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '✅ All Orders CSV exported successfully!',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text('📁 Location: ${csvFile.path}'),
-              Text('📊 ${allOrders.length} orders exported (Posted + Draft)'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 6),
-          action: SnackBarAction(
-            label: 'View & Share',
-            onPressed: () => _showViewAndShareOptions(context, csvFile.path, csvContent, allOrders.length),
-          ),
-        ),
-      );
-      
-    } catch (e) {
-      print('Error exporting all orders CSV: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error exporting all orders CSV: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
   // Export all posted orders to CSV
   Future<void> _exportAllPostedOrdersToCSV(BuildContext context, OrderDraftBloc bloc) async {
     try {
@@ -763,75 +528,6 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
           duration: const Duration(seconds: 3),
         ),
       );
-    }
-  }
-
-  // Get all orders for today (both posted and draft)
-  Future<List<Map<String, dynamic>>> _getAllOrdersForToday(BuildContext context, OrderDraftBloc bloc) async {
-    try {
-      // Get all drafts from the provided bloc
-      final state = bloc.state;
-      List<OrderDraft> allDrafts = [];
-      
-      state.maybeWhen(
-        loaded: (drafts) => allDrafts = drafts,
-        orElse: () => allDrafts = [],
-      );
-      
-      print('Found ${allDrafts.length} total drafts');
-      
-      // Filter for today's orders only (both posted and draft)
-      final now = DateTime.now();
-      bool isSameDay(DateTime a, DateTime b) =>
-          a.year == b.year && a.month == b.month && a.day == b.day;
-      
-      final todayOrders = allDrafts.where((draft) => isSameDay(draft.createdAt, now)).toList();
-      
-      print('Found ${todayOrders.length} orders for today');
-      
-      // Debug: Show today's orders
-      for (final order in todayOrders) {
-        print('Today\'s order: ${order.clientName}');
-        print('  - Created: ${order.createdAt}');
-        print('  - Is confirmed: ${order.isConfirmedForProcessing}');
-        print('  - Items: ${order.items.length}');
-        print('  - Export Data: ${order.exportData?.length ?? 0} records');
-      }
-      
-      // Generate export data for all today's orders
-      List<Map<String, dynamic>> exportData = [];
-      
-      for (final draft in todayOrders) {
-        if (draft.exportData != null && draft.exportData!.isNotEmpty) {
-          // Use saved export data from confirmation
-          print('Using saved export data for ${draft.clientName}');
-          exportData.addAll(draft.exportData!);
-        } else {
-          // Generate new export data (for draft orders)
-          print('Generating new export data for draft ${draft.clientName}');
-          for (final item in draft.items) {
-            exportData.add({
-              'bo_id': _OrderDraftsPageState.generateUniqueBoId(), // 8-digit BO ID
-              'bm_code': await _getBookingManId(),
-              'client_code': draft.clientId,
-              'pr_code': item.prCode,
-              'pcode': item.productCode,
-              'item_name': item.productName,
-              'qty': item.quantity,
-              'bonus': item.bonus ?? 0,
-              'dis_percent': item.discount ?? 0,
-              'total_amount': item.totalPrice,
-            });
-          }
-        }
-      }
-      
-      print('Generated ${exportData.length} export records for all today\'s orders');
-      return exportData;
-      
-    } catch (e) {
-      print('Error in _getAllOrdersForToday: $e');
-      rethrow;
     }
   }
 
@@ -1292,13 +988,7 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
       // Get external storage directory
       final externalDir = Directory('/storage/emulated/0/Download');
       if (await externalDir.exists()) {
-        // Determine the correct filename based on the internal path
-        String fileName = 'salord.csv'; // Default for posted orders
-        if (internalPath.contains('all_orders_today.csv')) {
-          fileName = 'all_orders_today.csv';
-        }
-        
-        final externalFile = File('${externalDir.path}/$fileName');
+        final externalFile = File('${externalDir.path}/salord.csv');
         await externalFile.writeAsString(csvContent);
         print('✅ Copied CSV to external storage: ${externalFile.path}');
       }
@@ -1389,54 +1079,55 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
     });
   }
 
-  void _postAllSelectedDrafts(List<OrderDraft> drafts) async {
+  void _postAllSelectedDrafts() async {
     if (_selectedDraftIds.isEmpty) return;
 
-    final selectedDrafts = drafts.where((draft) => _selectedDraftIds.contains(draft.id)).toList();
+    // Get the current state to access drafts
+    final bloc = context.read<OrderDraftBloc>();
+    final state = bloc.state;
     
-    if (selectedDrafts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ No selected drafts found'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    state.maybeWhen(
+      loaded: (drafts) async {
+        final selectedDrafts = drafts.where((draft) => _selectedDraftIds.contains(draft.id)).toList();
+        
+        if (selectedDrafts.isEmpty) return;
 
-    // Show confirmation dialog
-    final shouldProceed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Post All Selected Drafts'),
-        content: Text(
-          'Are you sure you want to post ${selectedDrafts.length} draft(s)?\n\n'
-          'This will:\n'
-          '• Confirm all selected drafts for processing\n'
-          '• Send all orders to the server\n'
-          '• Make all drafts read-only\n\n'
-          'Selected drafts:\n${selectedDrafts.map((d) => '• ${d.clientName}').join('\n')}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
+        // Show confirmation dialog
+        final shouldProceed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Post All Selected Drafts'),
+            content: Text(
+              'Are you sure you want to post ${selectedDrafts.length} draft(s)?\n\n'
+              'This will:\n'
+              '• Confirm all selected drafts for processing\n'
+              '• Send all orders to the server\n'
+              '• Make all drafts read-only\n\n'
+              'Selected drafts:\n${selectedDrafts.map((d) => '• ${d.clientName}').join('\n')}',
             ),
-            child: const Text('Post All'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Post All'),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
 
-    if (shouldProceed == true) {
-      await _performBulkPost(selectedDrafts);
-    }
+        if (shouldProceed == true) {
+          await _performBulkPost(selectedDrafts);
+        }
+      },
+      orElse: () {},
+    );
   }
 
   Future<void> _performBulkPost(List<OrderDraft> drafts) async {
@@ -1645,54 +1336,55 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
   }
 
   // Export selected drafts to CSV
-  void _exportSelectedDraftsToCSV(List<OrderDraft> drafts) async {
+  void _exportSelectedDraftsToCSV() async {
     if (_selectedDraftIds.isEmpty) return;
 
-    final selectedDrafts = drafts.where((draft) => _selectedDraftIds.contains(draft.id)).toList();
+    // Get the current state to access drafts
+    final bloc = context.read<OrderDraftBloc>();
+    final state = bloc.state;
     
-    if (selectedDrafts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ No selected drafts found'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    state.maybeWhen(
+      loaded: (drafts) async {
+        final selectedDrafts = drafts.where((draft) => _selectedDraftIds.contains(draft.id)).toList();
+        
+        if (selectedDrafts.isEmpty) return;
 
-    // Show confirmation dialog
-    final shouldProceed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Export Selected Drafts to CSV'),
-        content: Text(
-          'Are you sure you want to export ${selectedDrafts.length} draft(s) to CSV?\n\n'
-          'This will:\n'
-          '• Generate CSV file with all selected drafts\n'
-          '• Include all order items and details\n'
-          '• Create a downloadable file\n\n'
-          'Selected drafts:\n${selectedDrafts.map((d) => '• ${d.clientName}').join('\n')}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
+        // Show confirmation dialog
+        final shouldProceed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Export Selected Drafts to CSV'),
+            content: Text(
+              'Are you sure you want to export ${selectedDrafts.length} draft(s) to CSV?\n\n'
+              'This will:\n'
+              '• Generate CSV file with all selected drafts\n'
+              '• Include all order items and details\n'
+              '• Create a downloadable file\n\n'
+              'Selected drafts:\n${selectedDrafts.map((d) => '• ${d.clientName}').join('\n')}',
             ),
-            child: const Text('Export to CSV'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Export to CSV'),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
 
-    if (shouldProceed == true) {
-      await _performBulkExport(selectedDrafts);
-    }
+        if (shouldProceed == true) {
+          await _performBulkExport(selectedDrafts);
+        }
+      },
+      orElse: () {},
+    );
   }
 
   Future<void> _performBulkExport(List<OrderDraft> drafts) async {

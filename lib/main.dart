@@ -4,17 +4,15 @@ import 'injection_container.dart' as di;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'core/services/auth_service.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   MobileAds.instance.initialize();
   di.init();
-  
-  // Initialize automatic location tracking for logged-in users
-  await AuthService.initializeLocationTracking();
-  
   runApp(const MyApp());
 }
 

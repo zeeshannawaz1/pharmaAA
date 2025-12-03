@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../services/app_update_service.dart';
+import 'app_update_dialog.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onSplashComplete;
@@ -18,6 +20,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late AnimationController _fadeController;
   late Animation<double> _logoScaleAnimation;
   late Animation<double> _fadeAnimation;
+  bool _updateCheckComplete = false;
 
   @override
   void initState() {
@@ -37,6 +40,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
     );
     _startAnimations();
+    _checkForUpdates(); // Check for updates in parallel
   }
 
   void _startAnimations() async {
@@ -44,8 +48,53 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     await Future.delayed(const Duration(milliseconds: 600));
     _fadeController.forward();
     await Future.delayed(const Duration(milliseconds: 1200));
-    await Future.delayed(const Duration(seconds: 5));
+    await Future.delayed(const Duration(seconds: 2)); // Reduced from 5 to 2
+    
+    // Wait for update check to complete
+    while (!_updateCheckComplete) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    
     widget.onSplashComplete();
+  }
+
+  Future<void> _checkForUpdates() async {
+    try {
+      // Check both flags in parallel
+      final results = await Future.wait([
+        AppUpdateService.checkAppUpdates(),
+        AppUpdateService.checkForceUpdate(),
+      ]);
+
+      final hasAppUpdates = results[0] as bool;
+      final isForceUpdate = results[1] as bool;
+
+      // Note: Force update blocking is handled by ForceUpdateBlocker
+      // We only show optional update dialog here
+      if (hasAppUpdates && !isForceUpdate && mounted) {
+        // Show optional update dialog after a short delay
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: true,
+            builder: (context) => AppUpdateDialog(
+              isForceUpdate: false,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error checking for updates: $e');
+      // Continue app launch even if update check fails
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updateCheckComplete = true;
+        });
+      }
+    }
   }
 
   @override
@@ -114,7 +163,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             child: Column(
                               children: [
                           Text(
-                            'A&A App',
+                            'AA App',
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontSize: 32,
                               color: primary,

@@ -92,16 +92,6 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
     setState(() { orderLines.removeAt(index); });
   }
 
-  // Check if product is already selected in another line
-  bool _isProductAlreadySelected(Product product, int currentLineIndex) {
-    for (int i = 0; i < orderLines.length; i++) {
-      if (i != currentLineIndex && orderLines[i].product?.pcode == product.pcode) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
       _formKey.currentState?.save();
@@ -328,16 +318,10 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                                       focusNode: line._focusNode ??= FocusNode(),
                                       optionsBuilder: (TextEditingValue textEditingValue) {
                                         final input = textEditingValue.text.toLowerCase();
-                                        
-                                        // Filter out products that are already selected in other lines
-                                        List<Product> availableProducts = state.products.where((p) => 
-                                          !_isProductAlreadySelected(p, idx)
-                                        ).toList();
-                                        
                                         if (input.isEmpty) {
-                                          return availableProducts;
+                                          return state.products;
                                         }
-                                        return availableProducts.where((p) =>
+                                        return state.products.where((p) =>
                                           p.pname.toLowerCase().contains(input) ||
                                           p.pcode.toLowerCase().contains(input)
                                         );
@@ -392,25 +376,9 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                                                     ),
                                                     subtitle: Text('Price: ${product.tprice}', style: const TextStyle(fontSize: 12)),
                                                     onTap: () {
-                                                      // Check if product is already selected in another line
-                                                      if (_isProductAlreadySelected(product, idx)) {
-                                                        ScaffoldMessenger.of(context).showSnackBar(
-                                                          SnackBar(
-                                                            content: Text('⚠️ ${product.pname} is already selected in another line'),
-                                                            backgroundColor: Colors.orange,
-                                                            duration: const Duration(seconds: 2),
-                                                          ),
-                                                        );
-                                                        return;
-                                                      }
-                                                      
                                                       setState(() {
                                                         line.product = product;
                                                         line._controller?.text = product.pname;
-                                                        line._controller?.selection = TextSelection.fromPosition(
-                                                          TextPosition(offset: product.pname.length),
-                                                        );
-                                                        
                                                         // Fetch stock for today and this product
                                                         line.stockCubit ??= StockCubit(
                                                           getStock: GetStock(
