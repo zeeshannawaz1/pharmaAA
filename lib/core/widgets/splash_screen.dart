@@ -7,9 +7,9 @@ class SplashScreen extends StatefulWidget {
   final VoidCallback onSplashComplete;
 
   const SplashScreen({
-    Key? key,
+    super.key,
     required this.onSplashComplete,
-  }) : super(key: key);
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -66,8 +66,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         AppUpdateService.checkForceUpdate(),
       ]);
 
-      final hasAppUpdates = results[0] as bool;
-      final isForceUpdate = results[1] as bool;
+      final hasAppUpdates = results[0];
+      final isForceUpdate = results[1];
 
       // Note: Force update blocking is handled by ForceUpdateBlocker
       // We only show optional update dialog here

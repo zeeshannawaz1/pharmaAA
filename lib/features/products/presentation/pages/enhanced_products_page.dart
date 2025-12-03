@@ -8,9 +8,10 @@ import 'widgets/product_card.dart';
 import 'widgets/product_details_modal.dart';
 import 'widgets/advanced_filter_sheet.dart';
 import 'widgets/category_chips.dart';
+import '../../../../main_screen.dart';
 
 class EnhancedProductsPage extends StatefulWidget {
-  const EnhancedProductsPage({Key? key}) : super(key: key);
+  const EnhancedProductsPage({super.key});
 
   @override
   State<EnhancedProductsPage> createState() => _EnhancedProductsPageState();
@@ -25,7 +26,7 @@ class _EnhancedProductsPageState extends State<EnhancedProductsPage>
   String _searchQuery = '';
   String _selectedCategory = 'All';
   String _sortBy = 'Name';
-  bool _isGridView = true;
+  final bool _isGridView = true;
   bool _showFavorites = false;
   RangeValues _priceRange = const RangeValues(0, 1000);
   bool _showOnlyDiscounted = false;
@@ -183,7 +184,7 @@ class _EnhancedProductsPageState extends State<EnhancedProductsPage>
         return state.when(
           initial: () => const Center(child: Text('No products available.')),
           loading: () => const Center(child: CircularProgressIndicator()),
-          loaded: (allProducts, [warning]) {
+          loaded: (allProducts, warning) {
             final filteredProducts = _getFilteredProducts(allProducts);
             final categories = allProducts.map((p) => p.prcode).toSet().toList();
             final categoryNames = { for (var p in allProducts) p.prcode: p.prcode };
@@ -306,7 +307,7 @@ class _EnhancedProductsPageState extends State<EnhancedProductsPage>
                             Column(
                               children: [
                                 DropdownButtonFormField<String>(
-                                  value: _sortBy,
+                                  initialValue: _sortBy,
                                   decoration: InputDecoration(
                                     labelText: 'Sort By',
                                     border: OutlineInputBorder(
@@ -498,6 +499,7 @@ class _EnhancedProductsPageState extends State<EnhancedProductsPage>
                                 ),
                         ),
                       ),
+                      const BannerAdWidget(),
                     ],
                   ),
                 ),

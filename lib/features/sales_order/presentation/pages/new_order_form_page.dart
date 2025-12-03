@@ -12,7 +12,7 @@ import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 
 class NewOrderFormPage extends StatefulWidget {
-  const NewOrderFormPage({Key? key}) : super(key: key);
+  const NewOrderFormPage({super.key});
 
   @override
   State<NewOrderFormPage> createState() => _NewOrderFormPageState();
@@ -257,7 +257,7 @@ class _NewOrderFormPageState extends State<NewOrderFormPage> with SingleTickerPr
       cityField = Text(_citiesError!, style: const TextStyle(color: Colors.red));
     } else {
       cityField = DropdownButtonFormField<String>(
-        value: selectedCity,
+        initialValue: selectedCity,
         decoration: const InputDecoration(
           labelText: 'Select City (Offline)',
           icon: Icon(Icons.location_city),
@@ -289,7 +289,7 @@ class _NewOrderFormPageState extends State<NewOrderFormPage> with SingleTickerPr
         ..sort();
     }
     Widget areaField = DropdownButtonFormField<String>(
-      value: selectedArea,
+      initialValue: selectedArea,
       decoration: const InputDecoration(
         labelText: 'Select Area (Offline)',
         icon: Icon(Icons.map),
@@ -324,7 +324,7 @@ class _NewOrderFormPageState extends State<NewOrderFormPage> with SingleTickerPr
       clientDropdown = const Text('No offline clients found.', style: TextStyle(color: Colors.orange));
     } else {
       clientDropdown = DropdownButtonFormField<String>(
-        value: selectedClient,
+        initialValue: selectedClient,
         decoration: const InputDecoration(
           labelText: 'Select Client',
           icon: Icon(Icons.person),

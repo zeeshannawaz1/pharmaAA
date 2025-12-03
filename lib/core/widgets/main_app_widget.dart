@@ -8,7 +8,7 @@ import 'auth_check_widget.dart';
 import 'force_update_blocker.dart';
 
 class MainAppWidget extends StatefulWidget {
-  const MainAppWidget({Key? key}) : super(key: key);
+  const MainAppWidget({super.key});
 
   @override
   State<MainAppWidget> createState() => _MainAppWidgetState();

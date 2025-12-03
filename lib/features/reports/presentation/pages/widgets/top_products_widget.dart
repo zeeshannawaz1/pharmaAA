@@ -4,9 +4,9 @@ class TopProductsWidget extends StatelessWidget {
   final List<Map<String, dynamic>> products;
 
   const TopProductsWidget({
-    Key? key,
+    super.key,
     required this.products,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +150,7 @@ class TopProductsWidget extends StatelessWidget {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

@@ -3,13 +3,14 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../repositories/order_draft_repository.dart';
 
-class DeleteOrderDraft implements UseCase<Unit, String> {
+class DeleteAllOrderDrafts implements UseCase<Unit, NoParams> {
   final OrderDraftRepository repository;
 
-  DeleteOrderDraft(this.repository);
+  DeleteAllOrderDrafts(this.repository);
 
   @override
-  Future<Either<Failure, Unit>> call(String draftId) async {
-    return await repository.deleteOrderDraft(draftId);
+  Future<Either<Failure, Unit>> call(NoParams params) async {
+    return await repository.deleteAllOrderDrafts();
   }
-} 
+}
+

@@ -4,9 +4,9 @@ class ReportChartWidget extends StatelessWidget {
   final List<Map<String, dynamic>> data;
 
   const ReportChartWidget({
-    Key? key,
+    super.key,
     required this.data,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

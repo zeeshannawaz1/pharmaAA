@@ -1,6 +1,5 @@
 import '../../domain/entities/product.dart';
 import '../datasources/products_remote_data_source.dart';
-import '../../../products/data/models/product_model.dart';
 
 class ProductsRepositoryImpl {
   final ProductsRemoteDataSource remoteDataSource;

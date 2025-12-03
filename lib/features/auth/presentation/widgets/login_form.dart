@@ -6,7 +6,7 @@ import 'package:aa_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:aa_app/main_screen.dart';
 
 class LoginForm extends StatefulWidget {
-  const LoginForm({Key? key}) : super(key: key);
+  const LoginForm({super.key});
 
   @override
   State<LoginForm> createState() => _LoginFormState();

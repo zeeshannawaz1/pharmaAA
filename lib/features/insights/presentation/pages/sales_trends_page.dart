@@ -8,7 +8,7 @@ import '../../../../injection_container.dart' as di;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SalesTrendsPage extends StatefulWidget {
-  const SalesTrendsPage({Key? key}) : super(key: key);
+  const SalesTrendsPage({super.key});
 
   @override
   State<SalesTrendsPage> createState() => _SalesTrendsPageState();
@@ -489,7 +489,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
                 ),
               )
             else
-              Container(
+              SizedBox(
                 height: 200,
                 child: _buildRevenueChart(sortedDates, dailyRevenue),
               ),

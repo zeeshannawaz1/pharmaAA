@@ -64,7 +64,7 @@ class ProductsRepositoryImpl implements ProductsRepository {
           map[headers[i]] = row[i];
         }
         return ProductModel.fromJson(map).toEntity();
-      }).toList() as List<Product>;
+      }).toList();
     } catch (e) {
       throw Exception('Failed to load products from CSV: $e');
     }

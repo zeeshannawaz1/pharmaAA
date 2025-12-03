@@ -1,12 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:equatable/equatable.dart';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/entities/order_draft.dart';
 import '../../domain/usecases/get_order_drafts.dart';
 import '../../domain/usecases/save_order_draft.dart';
 import '../../domain/usecases/delete_order_draft.dart';
+import '../../domain/usecases/delete_all_order_drafts.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../../../core/services/confirmed_orders_service.dart';
 
@@ -18,12 +18,14 @@ class OrderDraftBloc extends Bloc<OrderDraftEvent, OrderDraftState> {
   final GetOrderDrafts getOrderDrafts;
   final SaveOrderDraft saveOrderDraft;
   final DeleteOrderDraft deleteOrderDraft;
+  final DeleteAllOrderDrafts deleteAllOrderDrafts;
   final ConfirmedOrdersService _confirmedOrdersService = ConfirmedOrdersService();
 
   OrderDraftBloc({
     required this.getOrderDrafts,
     required this.saveOrderDraft,
     required this.deleteOrderDraft,
+    required this.deleteAllOrderDrafts,
   }) : super(const OrderDraftState.initial()) {
     on<OrderDraftEvent>((event, emit) async {
       print('OrderDraftBloc: Received event: ${event.runtimeType}');
@@ -114,8 +116,21 @@ class OrderDraftBloc extends Bloc<OrderDraftEvent, OrderDraftState> {
   }
 
   Future<void> _onClearDrafts(_ClearDrafts event, Emitter<OrderDraftState> emit) async {
-    print('OrderDraftBloc: Clearing all drafts');
-    emit(const OrderDraftState.loaded([]));
+    print('OrderDraftBloc: Clearing all drafts from storage');
+    emit(const OrderDraftState.loading());
+    
+    final result = await deleteAllOrderDrafts(NoParams());
+    
+    result.fold(
+      (failure) {
+        print('OrderDraftBloc: Error clearing all drafts: ${failure.message}');
+        emit(OrderDraftState.error(failure.message));
+      },
+      (_) {
+        print('OrderDraftBloc: All drafts cleared successfully from storage');
+        emit(const OrderDraftState.loaded([]));
+      },
+    );
   }
 
   Future<void> _onConfirmDraftForProcessing(_ConfirmDraftForProcessing event, Emitter<OrderDraftState> emit) async {

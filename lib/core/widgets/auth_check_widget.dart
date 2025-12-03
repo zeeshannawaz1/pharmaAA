@@ -4,7 +4,7 @@ import 'package:aa_app/features/auth/presentation/pages/login_page.dart';
 import 'package:aa_app/main_screen.dart';
 
 class AuthCheckWidget extends StatefulWidget {
-  const AuthCheckWidget({Key? key}) : super(key: key);
+  const AuthCheckWidget({super.key});
 
   @override
   State<AuthCheckWidget> createState() => _AuthCheckWidgetState();

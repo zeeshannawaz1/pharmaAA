@@ -52,7 +52,7 @@ class MainScreen extends StatefulWidget {
   final String userName;
   final OrderDraft? editDraft;
 
-  const MainScreen({Key? key, required this.userName, this.editDraft}) : super(key: key);
+  const MainScreen({super.key, required this.userName, this.editDraft});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -494,7 +494,7 @@ class _MainScreenState extends State<MainScreen> {
             setState(() {
               _selectedIndex = index;
             });
-          print('[DEBUG] BottomNav tapped: ' + index.toString());
+          print('[DEBUG] BottomNav tapped: $index');
           // Run async logic after UI update
           Future.microtask(() async {
             await maybeShowInterstitialAd();
@@ -570,6 +570,7 @@ class _MainScreenState extends State<MainScreen> {
           }),
           onOrderLineChanged: (index, line) => setState(() {
             _orderLines[index] = line;
+            print('DEBUG: Order line $index updated. productName: ${line.productName}, productCode: ${line.productCode}');
           }),
           onAddLine: _addOrderLine,
           onRemoveLine: _removeOrderLine,
@@ -583,19 +584,7 @@ class _MainScreenState extends State<MainScreen> {
                   initialSelectedClient: _selectedClient,
                 ),
               ),
-              FutureBuilder<bool>(
-                future: fetchShowAdsFlag(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return SizedBox.shrink();
-                  }
-                  if (snapshot.data == true) {
-                    return const BannerAdWidget();
-                  } else {
-                    return SizedBox.shrink();
-                  }
-                },
-              ),
+              const BannerAdWidget(),
             ],
           ),
         );
@@ -603,19 +592,7 @@ class _MainScreenState extends State<MainScreen> {
         return Column(
           children: [
             const Expanded(child: OrderDraftsPage()),
-            FutureBuilder<bool>(
-              future: fetchShowAdsFlag(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return SizedBox.shrink();
-                }
-                if (snapshot.data == true) {
-                  return const BannerAdWidget();
-                } else {
-                  return SizedBox.shrink();
-                }
-              },
-            ),
+            const BannerAdWidget(),
           ],
         );
       case 3:
@@ -670,7 +647,7 @@ class _MainScreenState extends State<MainScreen> {
         Map<String, dynamic>? syncResult;
         return StatefulBuilder(
           builder: (context, setState) {
-            Future<void> _startSync() async {
+            Future<void> startSync() async {
               final syncService = OfflineSyncService();
               setState(() {
                 progressMessage = 'Starting sync...';
@@ -714,7 +691,7 @@ class _MainScreenState extends State<MainScreen> {
             }
             // Start sync only once
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (progressMessage == 'Preparing...') _startSync();
+              if (progressMessage == 'Preparing...') startSync();
             });
             return AlertDialog(
               title: Text('Offline Data Sync'),
@@ -786,7 +763,7 @@ class _MainScreenState extends State<MainScreen> {
                           syncResult = null;
                           isSyncing = true;
                         });
-                        _startSync();
+                        startSync();
                       },
                       child: const Text('Retry'),
                     ),
@@ -877,7 +854,7 @@ class OrderPage extends StatelessWidget {
   static const String _cityPrefsKey = 'src_cities';
 
   const OrderPage({
-    Key? key,
+    super.key,
     required this.clients,
     required this.products,
     required this.loading,
@@ -901,7 +878,7 @@ class OrderPage extends StatelessWidget {
     this.initialSelectedCity,
     this.initialSelectedArea,
     this.initialSelectedClient,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -960,7 +937,7 @@ class _OrderPageContent extends StatefulWidget {
   final Client? initialSelectedClient;
 
   const _OrderPageContent({
-    Key? key,
+    super.key,
     required this.clients,
     required this.products,
     required this.loading,
@@ -984,7 +961,7 @@ class _OrderPageContent extends StatefulWidget {
     this.initialSelectedCity,
     this.initialSelectedArea,
     this.initialSelectedClient,
-  }) : super(key: key);
+  });
 
   @override
   State<_OrderPageContent> createState() => _OrderPageContentState();
@@ -999,11 +976,11 @@ class _OrderPageContentState extends State<_OrderPageContent> {
     return finalTotal;
   }
 
-  List<Client> _clients = [];
-  List<Product> _products = [];
+  final List<Client> _clients = [];
+  final List<Product> _products = [];
   List<Client> _filteredClients = [];
-  List<Product> _filteredProducts = [];
-  bool _isDraftExpanded = false;
+  final List<Product> _filteredProducts = [];
+  final bool _isDraftExpanded = false;
 
   // Hierarchical selection state
   String? _selectedCity;
@@ -1015,6 +992,11 @@ class _OrderPageContentState extends State<_OrderPageContent> {
   String? _citiesError;
   List<Map<String, String>> _allAreas = [];
   List<Map<String, String>> _allClients = [];
+  
+  // City search controller
+  final TextEditingController _cityController = TextEditingController();
+  // Area search controller
+  final TextEditingController _areaController = TextEditingController();
 
   Future<void> _loadAreas() async {
     try {
@@ -1075,6 +1057,10 @@ class _OrderPageContentState extends State<_OrderPageContent> {
   @override
   void initState() {
     super.initState();
+    // Initialize city controller with initial value
+    _cityController.text = widget.initialSelectedCity ?? '';
+    // Initialize area controller with initial value
+    _areaController.text = widget.initialSelectedArea ?? '';
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadCities();
       await _loadAreas();
@@ -1083,12 +1069,14 @@ class _OrderPageContentState extends State<_OrderPageContent> {
       if (widget.initialSelectedCity != null && widget.initialSelectedCity!.isNotEmpty) {
         setState(() {
           _selectedCity = widget.initialSelectedCity;
+          _cityController.text = widget.initialSelectedCity!;
         });
         _onCitySelected(widget.initialSelectedCity);
       }
       if (widget.initialSelectedArea != null && widget.initialSelectedArea!.isNotEmpty) {
         setState(() {
           _selectedArea = widget.initialSelectedArea;
+          _areaController.text = widget.initialSelectedArea!;
         });
         _onAreaSelected(widget.initialSelectedArea);
       }
@@ -1099,6 +1087,13 @@ class _OrderPageContentState extends State<_OrderPageContent> {
       }
     });
     // Removed: _loadOrderData();
+  }
+
+  @override
+  void dispose() {
+    _cityController.dispose();
+    _areaController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCities() async {
@@ -1161,6 +1156,12 @@ class _OrderPageContentState extends State<_OrderPageContent> {
       _selectedArea = null;
       _selectedClient = null;
       _filteredClients = [];
+      // Update controller
+      if (city != null) {
+        _cityController.text = city;
+      } else {
+        _cityController.clear();
+      }
     });
     // Find the selected city's code
     String? selectedCityCode;
@@ -1200,6 +1201,12 @@ class _OrderPageContentState extends State<_OrderPageContent> {
     setState(() {
       _selectedArea = area;
       _selectedClient = null;
+      // Update controller
+      if (area != null) {
+        _areaController.text = area;
+      } else {
+        _areaController.clear();
+      }
     });
     // Debug: Print selected city and area
     print('[DEBUG] Selected city: [36m$_selectedCity[0m, area: [36m$_selectedArea[0m');
@@ -1395,27 +1402,131 @@ class _OrderPageContentState extends State<_OrderPageContent> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 16),
-                        // CITY DROPDOWN
+                        // CITY SEARCHABLE FIELD
                         if (_loadingCities)
                           const Center(child: CircularProgressIndicator())
                         else if (_citiesError != null)
                           Text(_citiesError!, style: const TextStyle(color: Colors.red))
                         else
-                        DropdownButtonFormField<String>(
-                          value: _selectedCity,
-                          items: _cities.map((city) => DropdownMenuItem(value: city, child: Text(city))).toList(),
-                          onChanged: _onCitySelected,
-                          decoration: const InputDecoration(labelText: 'Select City', border: OutlineInputBorder()),
+                        Autocomplete<String>(
+                          initialValue: TextEditingValue(text: _selectedCity ?? ''),
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            if (textEditingValue.text.isEmpty) {
+                              return _cities;
+                            }
+                            final input = textEditingValue.text.toLowerCase();
+                            return _cities.where((city) => 
+                              city.toLowerCase().contains(input)
+                            );
+                          },
+                          onSelected: (String value) {
+                            setState(() {
+                              _selectedCity = value;
+                              _cityController.text = value;
+                            });
+                            _onCitySelected(value);
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: const InputDecoration(
+                                labelText: 'Select City (Searchable)',
+                                hintText: 'Type to search cities...',
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.search),
+                              ),
+                            );
+                          },
+                          optionsViewBuilder: (context, onSelected, options) {
+                            if (options.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                elevation: 4,
+                                child: SizedBox(
+                                  width: 350,
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    itemCount: options.length,
+                                    itemBuilder: (context, index) {
+                                      final city = options.elementAt(index);
+                                      return ListTile(
+                                        leading: const Icon(Icons.location_city),
+                                        title: Text(city),
+                                        onTap: () => onSelected(city),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
-                        // AREA DROPDOWN
+                        // AREA SEARCHABLE FIELD
                         if (_selectedCity != null)
-                        DropdownButtonFormField<String>(
-                          value: _selectedArea,
-                            items: _areas.map((area) => DropdownMenuItem(value: area, child: Text(area))).toList(),
-                            onChanged: _onAreaSelected,
-                            decoration: const InputDecoration(labelText: 'Select Area', border: OutlineInputBorder()),
-                          ),
+                        Autocomplete<String>(
+                          initialValue: TextEditingValue(text: _selectedArea ?? ''),
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            if (textEditingValue.text.isEmpty) {
+                              return _areas;
+                            }
+                            final input = textEditingValue.text.toLowerCase();
+                            return _areas.where((area) => 
+                              area.toLowerCase().contains(input)
+                            );
+                          },
+                          onSelected: (String value) {
+                            setState(() {
+                              _selectedArea = value;
+                              _areaController.text = value;
+                            });
+                            _onAreaSelected(value);
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: const InputDecoration(
+                                labelText: 'Select Area (Searchable)',
+                                hintText: 'Type to search areas...',
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.search),
+                              ),
+                            );
+                          },
+                          optionsViewBuilder: (context, onSelected, options) {
+                            if (options.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                elevation: 4,
+                                child: SizedBox(
+                                  width: 350,
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    itemCount: options.length,
+                                    itemBuilder: (context, index) {
+                                      final area = options.elementAt(index);
+                                      return ListTile(
+                                        leading: const Icon(Icons.map),
+                                        title: Text(area),
+                                        onTap: () => onSelected(area),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                         const SizedBox(height: 16),
                         // CLIENT DROPDOWN
                         if (_selectedCity != null && _selectedArea != null)
@@ -1473,7 +1584,12 @@ class _OrderPageContentState extends State<_OrderPageContent> {
                                           overflow: TextOverflow.ellipsis,
                                           maxLines: 1,
                                         ),
-                                        subtitle: Text(client.code, style: const TextStyle(fontSize: 12)),
+                                        subtitle: Text(
+                                          client.address.isNotEmpty ? client.address : 'No address',
+                                          style: const TextStyle(fontSize: 12),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                         onTap: () {
                                           setState(() {
                                             _selectedClient = client;
@@ -1550,7 +1666,7 @@ class _OrderPageContentState extends State<_OrderPageContent> {
                                                         // Product Button (under "Item" title)
                             Expanded(
                               flex: 2,
-                              child: Container(
+                              child: SizedBox(
                               height: 30,
                               child: ElevatedButton(
                                 onPressed: () {
@@ -1684,7 +1800,7 @@ class _OrderPageContentState extends State<_OrderPageContent> {
 
                             // Delete Button (only show if more than one item)
                             if (widget.orderLines.length > 1)
-                              Container(
+                              SizedBox(
                                 width: 30,
                                 height: 30,
                                 child: ElevatedButton(
@@ -1751,10 +1867,10 @@ class _OrderPageContentState extends State<_OrderPageContent> {
                       ],
                     ),
                   );
-                }).toList(),
+                }),
                 
                 // ADD ITEM BUTTON (matching the image)
-                Container(
+                SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: widget.onAddLine,
@@ -1905,247 +2021,575 @@ class _OrderPageContentState extends State<_OrderPageContent> {
     return _calculateGrossAmount() - _calculateDiscountTotal();
   }
 
-  // Method to show product selection dialog with proper Product entity assignment
+  // Method to show product selection as full screen page
   void _showProductSelectionDialog(int index, _OrderLine line) {
-    String searchQuery = '';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _ProductSelectionScreen(
+          products: widget.products,
+          onProductConfirmed: (Product product, double quantity, double discount, double bonus) {
+            // Check the ACTUAL current state of the line, not the snapshot
+            // This ensures we see the updated state after previous confirmations
+            final currentLine = widget.orderLines.length > index ? widget.orderLines[index] : line;
+            final currentLineHasProduct = currentLine.productName.isNotEmpty || currentLine.product != null;
+            
+            if (currentLineHasProduct) {
+              // Current line already has a product, create a new line
+              // Calculate the new index before adding (it will be the current length)
+              final newIndex = widget.orderLines.length;
+              
+              // Add a new empty line
+              widget.onAddLine();
+              
+              // Wait for the next frame to ensure state is updated
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final newLine = _OrderLine()
+                  ..productName = product.pname
+                  ..productCode = product.pcode
+                  ..price = double.tryParse(product.tprice) ?? 0.0
+                  ..quantity = quantity
+                  ..discount = discount
+                  ..bonus = bonus
+                  ..product = product;
+                
+                // Update the new line at the calculated index
+                widget.onOrderLineChanged(newIndex, newLine);
+                
+                print('=== PRODUCT ADDED TO NEW LINE ===');
+                print('New line index: $newIndex');
+                print('Total lines: ${widget.orderLines.length}');
+                print('Selected: ${product.pname}');
+                print('PRCODE: ${product.prcode} ✅');
+                print('PCODE: ${product.pcode}');
+                print('TPRICE: ${product.tprice}');
+                print('Quantity: $quantity');
+                print('Discount: $discount');
+                print('Bonus: $bonus');
+                print('=======================================');
+              });
+            } else {
+              // Current line is empty, update it
+              // Create a completely new line object to ensure state update
+              final updatedLine = _OrderLine()
+                ..product = product
+                ..productName = product.pname
+                ..productCode = product.pcode
+                ..price = double.tryParse(product.tprice) ?? 0.0
+                ..quantity = quantity
+                ..discount = discount
+                ..bonus = bonus
+                ..packing = currentLine.packing ?? 'Tab'; // Preserve packing if exists
+              
+              // Update the order line using the callback
+              widget.onOrderLineChanged(index, updatedLine);
+              
+              print('=== PRODUCT UPDATED IN EXISTING LINE ===');
+              print('Line index: $index');
+              print('Selected: ${product.pname}');
+              print('PRCODE: ${product.prcode} ✅');
+              print('PCODE: ${product.pcode}');
+              print('TPRICE: ${product.tprice}');
+              print('Quantity: $quantity');
+              print('Discount: $discount');
+              print('Bonus: $bonus');
+              print('Updated line productName: ${updatedLine.productName}');
+              print('Updated line productCode: ${updatedLine.productCode}');
+              print('Line.product entity set: ${updatedLine.product != null}');
+              print('=======================================');
+            }
+            
+            // Show confirmation feedback
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Added: ${product.pname} (Qty: ${quantity.toInt()})'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            
+            // DON'T close the screen - stay open for adding more products
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// Full screen product selection page
+class _ProductSelectionScreen extends StatefulWidget {
+  final List<Product> products;
+  final Function(Product product, double quantity, double discount, double bonus) onProductConfirmed;
+
+  const _ProductSelectionScreen({
+    required this.products,
+    required this.onProductConfirmed,
+  });
+
+  @override
+  State<_ProductSelectionScreen> createState() => _ProductSelectionScreenState();
+}
+
+class _ProductSelectionScreenState extends State<_ProductSelectionScreen> {
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  
+  // Selected product state
+  Product? _selectedProduct;
+  final TextEditingController _qtyController = TextEditingController(text: '1');
+  final TextEditingController _discountController = TextEditingController(text: '0');
+  final TextEditingController _bonusController = TextEditingController(text: '0');
+  final FocusNode _qtyFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _qtyController.dispose();
+    _discountController.dispose();
+    _bonusController.dispose();
+    _qtyFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedProduct = null;
+      _qtyController.text = '1';
+      _discountController.text = '0';
+      _bonusController.text = '0';
+    });
+    // Unfocus when clearing selection
+    _qtyFocusNode.unfocus();
+  }
+
+  void _confirmProduct() {
+    if (_selectedProduct == null) return;
     
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          // Filter products based on search query
-          final filteredProducts = widget.products.where((product) {
-            if (searchQuery.isEmpty) return true;
-            final query = searchQuery.toLowerCase();
-            return product.pname.toLowerCase().contains(query) ||
-                   product.pcode.toLowerCase().contains(query) ||
-                   product.prcode.toLowerCase().contains(query);
-          }).toList();
-          
-          return AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.search, color: Colors.blue.shade700),
-                const SizedBox(width: 8),
-                const Text('Select Product'),
+    final quantity = double.tryParse(_qtyController.text) ?? 0.0;
+    if (quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Please enter a valid quantity'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    final discount = double.tryParse(_discountController.text) ?? 0.0;
+    final bonus = double.tryParse(_bonusController.text) ?? 0.0;
+    
+    // Call the callback
+    widget.onProductConfirmed(_selectedProduct!, quantity, discount, bonus);
+    
+    // Clear selection to allow adding more products
+    _clearSelection();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Filter products based on search query
+    final filteredProducts = widget.products.where((product) {
+      if (_searchQuery.isEmpty) return true;
+      final query = _searchQuery.toLowerCase();
+      return product.pname.toLowerCase().contains(query) ||
+             product.pcode.toLowerCase().contains(query) ||
+             product.prcode.toLowerCase().contains(query);
+    }).toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Icon(Icons.search, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text('Select Product'),
+          ],
+        ),
+        backgroundColor: Colors.blue.shade700,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          // Enhanced Search field with clear functionality
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
-            content: Container(
-              width: double.maxFinite,
-              height: 500, // Increased height for better viewing
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade300),
+                color: Colors.white,
+              ),
+              child: TextField(
+                controller: _searchController,
+                autofocus: _selectedProduct == null,
+                decoration: InputDecoration(
+                  labelText: 'Search by Product Name, Code, or Category...',
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  prefixIcon: Icon(Icons.search, color: Colors.blue.shade700),
+                  suffixIcon: _searchQuery.isNotEmpty 
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchQuery = '';
+                            _searchController.clear();
+                          });
+                        },
+                      )
+                    : null,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
+            ),
+          ),
+          
+          // Product Details Form (shown when product is selected)
+          if (_selectedProduct != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                border: Border(
+                  bottom: BorderSide(color: Colors.green.shade200, width: 2),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Enhanced Search field with clear functionality
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade300),
-                    ),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Search by Product Name, Code, or Category...',
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        prefixIcon: Icon(Icons.search, color: Colors.blue.shade700),
-                        suffixIcon: searchQuery.isNotEmpty 
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                setDialogState(() {
-                                  searchQuery = '';
-                                });
-                              },
-                            )
-                          : null,
+                  // Selected Product Info
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedProduct!.pname,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade900,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          searchQuery = value;
-                        });
-                      },
-                    ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: _clearSelection,
+                        tooltip: 'Clear selection',
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
-                  
-                  // Results count
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${filteredProducts.length} products found',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w500,
+                  // Input Fields Row
+                  Row(
+                    children: [
+                      // Quantity Field
+                      Expanded(
+                        child: TextFormField(
+                          controller: _qtyController,
+                          focusNode: _qtyFocusNode,
+                          decoration: InputDecoration(
+                            labelText: 'Qty *',
+                            border: OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      // Discount Field
+                      Expanded(
+                        child: TextFormField(
+                          controller: _discountController,
+                          decoration: InputDecoration(
+                            labelText: 'Dis %',
+                            border: OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Bonus Field
+                      Expanded(
+                        child: TextFormField(
+                          controller: _bonusController,
+                          decoration: InputDecoration(
+                            labelText: 'Bon',
+                            border: OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          keyboardType: TextInputType.numberWithOptions(decimal: false),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Confirm Button
+                      ElevatedButton.icon(
+                        onPressed: _confirmProduct,
+                        icon: const Icon(Icons.check, size: 20),
+                        label: const Text('Confirm'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          elevation: 2,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
-                  
-                  // Professional Product list with enhanced PRCODE display
-                  Expanded(
-                    child: filteredProducts.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
-                                const SizedBox(height: 16),
-                                Text(
-                                  searchQuery.isEmpty 
-                                    ? 'No products available.\nPlease sync data first.'
-                                    : 'No products match your search.\nTry different keywords.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey.shade600),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: filteredProducts.length,
-                            itemBuilder: (context, productIndex) {
-                              final product = filteredProducts[productIndex];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: Colors.white,
-                                ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(12),
-                                  title: Text(
-                                    product.pname,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 6),
-                                      // Professional PRCODE display - Most prominent
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue.shade50,
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: Colors.blue.shade200),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.category, size: 14, color: Colors.blue.shade700),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'PRCODE: ${product.prcode}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.blue.shade800,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      // Product details in organized rows
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.qr_code, size: 12, color: Colors.grey.shade600),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'Code: ${product.pcode}',
-                                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.attach_money, size: 12, color: Colors.green.shade600),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'Price: ${product.tprice}',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: Colors.green.shade700,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  trailing: Icon(
-                                    Icons.add_circle,
-                                    color: Colors.green.shade600,
-                                    size: 24,
-                                  ),
-                                  onTap: () {
-                                    // Set all product details AND the Product entity
-                                    final updatedLine = line.copyWith(
-                                      productName: product.pname,
-                                      productCode: product.pcode,
-                                      price: double.tryParse(product.tprice) ?? 0.0,
-                                      product: product, // ✅ CRITICAL: Set the Product entity
-                                    );
-                                    
-                                    // Update the order line using the callback
-                                    widget.onOrderLineChanged(index, updatedLine);
-                                    
-                                    print('=== PRODUCT SELECTED PROFESSIONALLY ===');
-                                    print('Selected: ${product.pname}');
-                                    print('PRCODE: ${product.prcode} ✅');
-                                    print('PCODE: ${product.pcode}');
-                                    print('TPRICE: ${product.tprice}');
-                                    print('Line.product entity set: ${updatedLine.product != null}');
-                                    print('=======================================');
-                                    
-                                    // Show confirmation feedback
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('✅ Selected: ${product.pname} (PRCODE: ${product.prcode})'),
-                                        backgroundColor: Colors.green,
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                    
-                                    Navigator.of(context).pop();
-                                  },
-                                ),
-                              );
-                            },
-                          ),
+                  // Product details
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'PRCODE: ${_selectedProduct!.prcode}',
+                          style: TextStyle(fontSize: 11, color: Colors.blue.shade900),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Code: ${_selectedProduct!.pcode}',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Price: ${_selectedProduct!.tprice}',
+                          style: TextStyle(fontSize: 11, color: Colors.green.shade900, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey.shade600,
-                ),
-                child: const Text('Cancel'),
+          
+          // Results count
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300),
               ),
-            ],
-          );
-        },
+            ),
+            child: Text(
+              '${filteredProducts.length} products found',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          
+          // Professional Product list with enhanced PRCODE display
+          Expanded(
+            child: filteredProducts.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isEmpty 
+                            ? 'No products available.\nPlease sync data first.'
+                            : 'No products match your search.\nTry different keywords.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredProducts.length,
+                    itemBuilder: (context, productIndex) {
+                      final product = filteredProducts[productIndex];
+                      final isSelected = _selectedProduct?.pcode == product.pcode;
+                      
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isSelected ? Colors.green.shade400 : Colors.grey.shade300,
+                            width: isSelected ? 2 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          color: isSelected ? Colors.green.shade50 : Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(16),
+                          title: Text(
+                            product.pname,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected ? Colors.green.shade900 : null,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 8),
+                              // Professional PRCODE display - Most prominent
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.blue.shade200),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.category, size: 14, color: Colors.blue.shade700),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'PRCODE: ${product.prcode}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Product details in organized rows
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.qr_code, size: 14, color: Colors.grey.shade600),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Code: ${product.pcode}',
+                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.attach_money, size: 14, color: Colors.green.shade600),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Price: ${product.tprice}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.green.shade700,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          trailing: Icon(
+                            isSelected ? Icons.check_circle : Icons.add_circle,
+                            color: isSelected ? Colors.green.shade700 : Colors.green.shade600,
+                            size: 28,
+                          ),
+                          onTap: () {
+                            setState(() {
+                              _selectedProduct = product;
+                              // Reset to defaults when selecting a new product
+                              _qtyController.text = '1';
+                              _discountController.text = '0';
+                              _bonusController.text = '0';
+                            });
+                            // Move focus to Qty field after product selection
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _qtyFocusNode.requestFocus();
+                              // Select all text for easy editing
+                              _qtyController.selection = TextSelection(
+                                baseOffset: 0,
+                                extentOffset: _qtyController.text.length,
+                              );
+                            });
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -2197,7 +2641,7 @@ class _OrderLine {
 class _ProductAutocomplete extends StatelessWidget {
   final List<Product> products;
   final void Function(Product) onSelected;
-  const _ProductAutocomplete({Key? key, required this.products, required this.onSelected}) : super(key: key);
+  const _ProductAutocomplete({super.key, required this.products, required this.onSelected});
 
   @override
   Widget build(BuildContext context) {
@@ -2241,7 +2685,7 @@ class _ProductAutocomplete extends StatelessWidget {
 }
 
 class ReportPage extends StatelessWidget {
-  const ReportPage({Key? key}) : super(key: key);
+  const ReportPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -2255,7 +2699,7 @@ class ReportPage extends StatelessWidget {
 class _DashboardContent extends StatefulWidget {
   final String userName;
   final VoidCallback onSync;
-  const _DashboardContent({Key? key, required this.userName, required this.onSync}) : super(key: key);
+  const _DashboardContent({super.key, required this.userName, required this.onSync});
 
   @override
   State<_DashboardContent> createState() => _DashboardContentState();
@@ -2491,19 +2935,7 @@ class _DashboardContentState extends State<_DashboardContent> {
               ),
             ),
 
-            FutureBuilder<bool>(
-              future: fetchShowAdsFlag(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox.shrink();
-                }
-                if (snapshot.data == true) {
-                  return const BannerAdWidget();
-                } else {
-                  return const SizedBox.shrink();
-                }
-              },
-            ),
+            const BannerAdWidget(),
             ],
           ),
         ),
@@ -2515,7 +2947,7 @@ class _DashboardContentState extends State<_DashboardContent> {
 // Smart Home Theme Main Action Card
 class _MainActionCardSmartTheme extends StatelessWidget {
   final _MainAction action;
-  const _MainActionCardSmartTheme({Key? key, required this.action}) : super(key: key);
+  const _MainActionCardSmartTheme({super.key, required this.action});
 
   @override
   Widget build(BuildContext context) {
@@ -2718,7 +3150,7 @@ class _MainAction {
 class _MainActionCard extends StatelessWidget {
   final _MainAction action;
 
-  const _MainActionCard({Key? key, required this.action}) : super(key: key);
+  const _MainActionCard({super.key, required this.action});
 
   @override
   Widget build(BuildContext context) {
@@ -3111,7 +3543,7 @@ class _OrderItemsCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...draft.items.map((item) => _ItemRow(item: item)).toList(),
+            ...draft.items.map((item) => _ItemRow(item: item)),
           ],
         ),
       ),
@@ -3150,9 +3582,9 @@ class _ItemRow extends StatelessWidget {
           Row(
             children: [
               _ItemData(label: 'Qty', value: '${item.quantity}', color: Colors.grey),
-              _ItemData(label: 'Bon', value: '${(item.bonus ?? 0).toStringAsFixed(1)}', color: Colors.green),
+              _ItemData(label: 'Bon', value: (item.bonus ?? 0).toStringAsFixed(1), color: Colors.green),
               _ItemData(label: 'Price', value: '${item.unitPrice.round()}', color: Colors.blue),
-              _ItemData(label: 'Dis%', value: '${(item.discount ?? 0).toStringAsFixed(1)}', color: Colors.orange),
+              _ItemData(label: 'Dis%', value: (item.discount ?? 0).toStringAsFixed(1), color: Colors.orange),
               _ItemData(label: 'Total', value: '${item.totalPrice.round()}', color: Colors.green, isTotal: true),
             ],
           ),
@@ -3414,7 +3846,7 @@ class _OrderTextFieldState extends State<_OrderTextField> {
 } 
 
 class BannerAdWidget extends StatefulWidget {
-  const BannerAdWidget({Key? key}) : super(key: key);
+  const BannerAdWidget({super.key});
 
   @override
   State<BannerAdWidget> createState() => _BannerAdWidgetState();
@@ -3423,19 +3855,42 @@ class BannerAdWidget extends StatefulWidget {
 class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
+  bool _shouldShowAds = true;
 
   @override
   void initState() {
     super.initState();
+    _checkAdsFlag();
+  }
+
+  Future<void> _checkAdsFlag() async {
+    final shouldShow = await fetchShowAdsFlag();
+    if (mounted) {
+      setState(() {
+        _shouldShowAds = shouldShow;
+      });
+      if (_shouldShowAds) {
+        _loadAd();
+      }
+    }
+  }
+
+  void _loadAd() {
     _bannerAd = BannerAd(
       adUnitId: 'ca-app-pub-8528144115156854/9848769890', // Production Banner ID
       size: AdSize.banner,
       request: AdRequest(),
       listener: BannerAdListener(
-        onAdLoaded: (_) => setState(() => _isLoaded = true),
+        onAdLoaded: (_) {
+          if (mounted) {
+            setState(() => _isLoaded = true);
+          }
+        },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
-          setState(() => _isLoaded = false);
+          if (mounted) {
+            setState(() => _isLoaded = false);
+          }
         },
       ),
     )..load();
@@ -3449,7 +3904,9 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isLoaded || _bannerAd == null) return const SizedBox.shrink();
+    if (!_shouldShowAds || !_isLoaded || _bannerAd == null) {
+      return const SizedBox.shrink();
+    }
     return Container(
       alignment: Alignment.center,
       width: _bannerAd!.size.width.toDouble(),

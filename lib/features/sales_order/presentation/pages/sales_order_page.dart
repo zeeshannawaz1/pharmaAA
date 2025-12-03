@@ -19,7 +19,7 @@ import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 
 class SalesOrderPage extends StatefulWidget {
-  const SalesOrderPage({Key? key}) : super(key: key);
+  const SalesOrderPage({super.key});
 
   @override
   State<SalesOrderPage> createState() => _SalesOrderPageState();
@@ -167,7 +167,7 @@ class _SalesOrderPageState extends State<SalesOrderPage> {
                       Text(_citiesError!, style: const TextStyle(color: Colors.red)),
                     ] else ...[
                       DropdownButtonFormField<String>(
-                        value: _selectedCity,
+                        initialValue: _selectedCity,
                         decoration: const InputDecoration(
                           labelText: 'City (Offline)',
                           icon: Icon(Icons.location_city),

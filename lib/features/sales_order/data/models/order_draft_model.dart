@@ -99,10 +99,10 @@ class OrderItemModel extends OrderItem {
     required super.unitPrice,
     required super.quantity,
     required super.totalPrice,
-    double? discount,
-    double? bonus,
-    String? packing,
-  }) : super(discount: discount, bonus: bonus, packing: packing);
+    super.discount,
+    super.bonus,
+    super.packing,
+  });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     return OrderItemModel(

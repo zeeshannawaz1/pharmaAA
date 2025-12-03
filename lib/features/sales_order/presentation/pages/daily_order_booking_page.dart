@@ -3,7 +3,7 @@ import 'dart:math';
 import 'new_order_form_page.dart';
 
 class DailyOrderBookingPage extends StatefulWidget {
-  const DailyOrderBookingPage({Key? key}) : super(key: key);
+  const DailyOrderBookingPage({super.key});
 
   @override
   State<DailyOrderBookingPage> createState() => _DailyOrderBookingPageState();

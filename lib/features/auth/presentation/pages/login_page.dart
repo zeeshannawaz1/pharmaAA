@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:aa_app/features/auth/presentation/widgets/simple_login_form.dart';
+import '../../../../main_screen.dart';
 
 class LoginPage extends StatelessWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +60,8 @@ class LoginPage extends StatelessWidget {
                       child: SimpleLoginForm(),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  const BannerAdWidget(),
                 ],
               ),
             ),

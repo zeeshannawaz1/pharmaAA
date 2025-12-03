@@ -7,12 +7,12 @@ class FilterSection extends StatelessWidget {
   final Function(String) onSortChanged;
 
   const FilterSection({
-    Key? key,
+    super.key,
     required this.selectedCategory,
     required this.sortBy,
     required this.onCategoryChanged,
     required this.onSortChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +45,7 @@ class FilterSection extends StatelessWidget {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: selectedCategory,
+                  initialValue: selectedCategory,
                   decoration: InputDecoration(
                     labelText: 'Category',
                     border: OutlineInputBorder(
@@ -68,7 +68,7 @@ class FilterSection extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: sortBy,
+                  initialValue: sortBy,
                   decoration: InputDecoration(
                     labelText: 'Sort By',
                     border: OutlineInputBorder(

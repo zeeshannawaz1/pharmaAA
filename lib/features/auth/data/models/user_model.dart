@@ -2,18 +2,12 @@ import 'package:aa_app/features/auth/domain/entities/user.dart';
 
 class UserModel extends User {
   const UserModel({
-    required String userId,
-    required String userName,
-    required String prCode,
-    required String prgCode,
-    required String pinCode,
-  }) : super(
-          userId: userId,
-          userName: userName,
-          prCode: prCode,
-          prgCode: prgCode,
-          pinCode: pinCode,
-        );
+    required super.userId,
+    required super.userName,
+    required super.prCode,
+    required super.prgCode,
+    required super.pinCode,
+  });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(

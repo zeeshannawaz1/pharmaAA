@@ -8,7 +8,7 @@ import '../../../../core/database/offline_database_service.dart';
 import 'package:collection/collection.dart'; // Added for firstWhereOrNull
 
 class OrderBookingLayoutForm extends StatefulWidget {
-  const OrderBookingLayoutForm({Key? key}) : super(key: key);
+  const OrderBookingLayoutForm({super.key});
 
   @override
   State<OrderBookingLayoutForm> createState() => _OrderBookingLayoutFormState();
@@ -200,7 +200,7 @@ class _OrderBookingLayoutFormState extends State<OrderBookingLayoutForm> {
                         ],
                       ),
                     ];
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
@@ -381,12 +381,10 @@ class _OrderBookingLayoutFormState extends State<OrderBookingLayoutForm> {
           );
           
           // Try partial match if exact match failed
-          if (selectedProduct == null) {
-            selectedProduct = _availableProducts.firstWhereOrNull(
+          selectedProduct ??= _availableProducts.firstWhereOrNull(
               (p) => p.pname.toLowerCase().contains(item.product.text.toLowerCase()) ||
                      item.product.text.toLowerCase().contains(p.pname.toLowerCase()),
             );
-          }
           
           if (selectedProduct == null) {
             print('  ❌ CRITICAL ERROR: Product "${item.product.text}" not found in offline database!');

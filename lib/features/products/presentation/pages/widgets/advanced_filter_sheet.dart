@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../main_screen.dart';
 
 class AdvancedFilterSheet extends StatefulWidget {
   final RangeValues priceRange;
@@ -7,12 +8,12 @@ class AdvancedFilterSheet extends StatefulWidget {
   final Function(bool) onDiscountedChanged;
 
   const AdvancedFilterSheet({
-    Key? key,
+    super.key,
     required this.priceRange,
     required this.showOnlyDiscounted,
     required this.onPriceRangeChanged,
     required this.onDiscountedChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<AdvancedFilterSheet> createState() => _AdvancedFilterSheetState();
@@ -190,7 +191,7 @@ class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
                               _showOnlyDiscounted = value;
                             });
                           },
-                          activeColor: const Color(0xFF1E3A8A),
+                          activeThumbColor: const Color(0xFF1E3A8A),
                         ),
                       ],
                     ),
@@ -237,34 +238,41 @@ class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF1E3A8A),
-                      side: const BorderSide(color: Color(0xFF1E3A8A)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                const BannerAdWidget(),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF1E3A8A),
+                          side: const BorderSide(color: Color(0xFF1E3A8A)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      widget.onPriceRangeChanged(_priceRange);
-                      widget.onDiscountedChanged(_showOnlyDiscounted);
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Apply Filters'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          widget.onPriceRangeChanged(_priceRange);
+                          widget.onDiscountedChanged(_showOnlyDiscounted);
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E3A8A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Apply Filters'),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),

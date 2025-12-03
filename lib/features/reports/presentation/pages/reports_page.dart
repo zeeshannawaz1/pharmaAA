@@ -4,9 +4,10 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../../../core/services/confirmed_orders_service.dart';
 import '../../../sales_order/domain/entities/order_draft.dart';
+import '../../../../main_screen.dart';
 
 class ReportsPage extends StatefulWidget {
-  const ReportsPage({Key? key}) : super(key: key);
+  const ReportsPage({super.key});
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
@@ -325,7 +326,7 @@ class _ReportsPageState extends State<ReportsPage> {
                               width: 120,
                     child: DropdownButtonFormField<String>(
                       isDense: true,
-                      value: _selectedClient ?? _clients.first,
+                      initialValue: _selectedClient ?? _clients.first,
                       items: _clients
                           .map((c) => DropdownMenuItem(
                                 value: c,
@@ -352,7 +353,7 @@ class _ReportsPageState extends State<ReportsPage> {
                               width: 120,
                     child: DropdownButtonFormField<String>(
                       isDense: true,
-                      value: _selectedProduct ?? _products.first,
+                      initialValue: _selectedProduct ?? _products.first,
                       items: _products
                           .map((p) => DropdownMenuItem(
                                 value: p,
@@ -430,11 +431,11 @@ class _ReportsPageState extends State<ReportsPage> {
                                                   Flexible(flex: 2, child: Text(order['date']?.toString() ?? '-', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
                                                   Flexible(flex: 2, child: Text(order['client']?.toString() ?? '-', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
                                                   Flexible(flex: 2, child: Text(order['product']?.toString() ?? '-', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
-                                                  Flexible(flex: 1, child: Text('${order['qty']?.toString() ?? '-'}', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
-                                                  Flexible(flex: 1, child: Text('${order['price']?.toString() ?? '-'}', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
-                                                  Flexible(flex: 1, child: Text('${order['discount']?.toString() ?? '-'}', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
-                                                  Flexible(flex: 1, child: Text('${order['bonus']?.toString() ?? '-'}', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
-                                                  Flexible(flex: 2, child: Text('${order['total']?.toString() ?? '-'}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                                                  Flexible(flex: 1, child: Text(order['qty']?.toString() ?? '-', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
+                                                  Flexible(flex: 1, child: Text(order['price']?.toString() ?? '-', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
+                                                  Flexible(flex: 1, child: Text(order['discount']?.toString() ?? '-', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
+                                                  Flexible(flex: 1, child: Text(order['bonus']?.toString() ?? '-', style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
+                                                  Flexible(flex: 2, child: Text(order['total']?.toString() ?? '-', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
                                                 ],
                                               ),
                                             );
@@ -446,6 +447,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 ),
               ),
             ),
+            const BannerAdWidget(),
           ],
         ),
       ),

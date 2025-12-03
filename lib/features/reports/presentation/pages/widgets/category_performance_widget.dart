@@ -4,9 +4,9 @@ class CategoryPerformanceWidget extends StatelessWidget {
   final List<Map<String, dynamic>> categories;
 
   const CategoryPerformanceWidget({
-    Key? key,
+    super.key,
     required this.categories,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +131,7 @@ class CategoryPerformanceWidget extends StatelessWidget {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

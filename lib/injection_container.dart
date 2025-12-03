@@ -12,6 +12,7 @@ import 'features/sales_order/domain/repositories/order_draft_repository.dart';
 import 'features/sales_order/domain/usecases/get_order_drafts.dart';
 import 'features/sales_order/domain/usecases/save_order_draft.dart';
 import 'features/sales_order/domain/usecases/delete_order_draft.dart';
+import 'features/sales_order/domain/usecases/delete_all_order_drafts.dart';
 import 'features/sales_order/presentation/bloc/order_draft_bloc.dart';
 
 final sl = GetIt.instance;
@@ -44,9 +45,11 @@ void init() async {
   sl.registerLazySingleton(() => GetOrderDrafts(sl()));
   sl.registerLazySingleton(() => SaveOrderDraft(sl()));
   sl.registerLazySingleton(() => DeleteOrderDraft(sl()));
+  sl.registerLazySingleton(() => DeleteAllOrderDrafts(sl()));
   sl.registerFactory(() => OrderDraftBloc(
     getOrderDrafts: sl(),
     saveOrderDraft: sl(),
     deleteOrderDraft: sl(),
+    deleteAllOrderDrafts: sl(),
   ));
 } 

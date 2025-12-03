@@ -7,9 +7,10 @@ import 'package:aa_app/features/sales_order/domain/entities/product.dart';
 import 'widgets/product_card.dart';
 import 'widgets/product_details_modal.dart';
 import 'widgets/filter_section.dart';
+import '../../../../main_screen.dart';
 
 class ProductsPage extends StatefulWidget {
-  const ProductsPage({Key? key}) : super(key: key);
+  const ProductsPage({super.key});
 
   @override
   State<ProductsPage> createState() => _ProductsPageState();
@@ -206,7 +207,7 @@ class _ProductsPageState extends State<ProductsPage> {
                               );
                               
                               return DropdownButtonFormField<String>(
-                                value: _selectedCategory,
+                                initialValue: _selectedCategory,
                                 decoration: InputDecoration(
                                   labelText: 'Category',
                                   border: OutlineInputBorder(
@@ -232,7 +233,7 @@ class _ProductsPageState extends State<ProductsPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: _sortBy,
+                            initialValue: _sortBy,
                             decoration: InputDecoration(
                               labelText: 'Sort By',
                               border: OutlineInputBorder(
@@ -432,6 +433,7 @@ class _ProductsPageState extends State<ProductsPage> {
                   },
                 ),
               ),
+              const BannerAdWidget(),
             ],
           ),
         ),

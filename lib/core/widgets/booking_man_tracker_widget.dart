@@ -7,9 +7,9 @@ class BookingManTrackerWidget extends StatefulWidget {
   final String? specificBookingManId; // Optional: track specific BM ID
 
   const BookingManTrackerWidget({
-    Key? key,
+    super.key,
     this.specificBookingManId,
-  }) : super(key: key);
+  });
 
   @override
   State<BookingManTrackerWidget> createState() => _BookingManTrackerWidgetState();
@@ -191,24 +191,24 @@ class _BookingManTrackerWidgetState extends State<BookingManTrackerWidget> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _loadBookingManLocations,
-                  child: const Icon(Icons.refresh),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade600,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.all(12),
                   ),
+                  child: const Icon(Icons.refresh),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () async {
                     await LocationService.debugBookingManTracking();
                   },
-                  child: const Icon(Icons.bug_report),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange.shade600,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.all(12),
                   ),
+                  child: const Icon(Icons.bug_report),
                 ),
               ],
             ),
@@ -290,7 +290,7 @@ class _BookingManTrackerWidgetState extends State<BookingManTrackerWidget> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  ..._filteredLocations.map((location) => _buildBookingManLocationCard(location)).toList(),
+                  ..._filteredLocations.map((location) => _buildBookingManLocationCard(location)),
                 ],
               ),
           ],

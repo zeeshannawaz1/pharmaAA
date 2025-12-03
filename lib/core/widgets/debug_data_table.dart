@@ -21,7 +21,7 @@ class OfflineFileInfo {
 }
 
 class DebugDataTable extends StatefulWidget {
-  const DebugDataTable({Key? key}) : super(key: key);
+  const DebugDataTable({super.key});
 
   @override
   State<DebugDataTable> createState() => _DebugDataTableState();
@@ -38,8 +38,8 @@ class _DebugDataTableState extends State<DebugDataTable> {
   bool _isImporting = false;
   
   // Data storage with pagination
-  List<Client> _clients = [];
-  List<Product> _products = [];
+  final List<Client> _clients = [];
+  final List<Product> _products = [];
   List<OfflineFileInfo> _offlineFiles = [];
   
   // Pagination

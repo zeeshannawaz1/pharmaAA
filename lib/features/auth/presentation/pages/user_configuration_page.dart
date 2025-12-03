@@ -5,7 +5,7 @@ import 'package:aa_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:aa_app/injection_container.dart' as di;
 
 class UserConfigurationPage extends StatelessWidget {
-  const UserConfigurationPage({Key? key}) : super(key: key);
+  const UserConfigurationPage({super.key});
 
   @override
   Widget build(BuildContext context) {

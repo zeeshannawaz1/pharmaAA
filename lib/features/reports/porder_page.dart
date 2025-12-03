@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 class ProcessedOrdersPage extends StatefulWidget {
-  const ProcessedOrdersPage({Key? key}) : super(key: key);
+  const ProcessedOrdersPage({super.key});
 
   @override
   State<ProcessedOrdersPage> createState() => _ProcessedOrdersPageState();

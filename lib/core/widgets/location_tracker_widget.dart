@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocationTrackerWidget extends StatefulWidget {
   final String userId;
 
-  const LocationTrackerWidget({Key? key, required this.userId}) : super(key: key);
+  const LocationTrackerWidget({super.key, required this.userId});
 
   @override
   State<LocationTrackerWidget> createState() => _LocationTrackerWidgetState();

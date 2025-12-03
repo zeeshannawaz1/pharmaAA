@@ -8,11 +8,11 @@ class AppUpdateDialog extends StatelessWidget {
   final String? updateUrl;
 
   const AppUpdateDialog({
-    Key? key,
+    super.key,
     required this.isForceUpdate,
     this.updateMessage,
     this.updateUrl,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

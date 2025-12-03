@@ -3,7 +3,7 @@ import '../services/location_service.dart';
 import 'package:intl/intl.dart';
 
 class AllUsersLocationWidget extends StatefulWidget {
-  const AllUsersLocationWidget({Key? key}) : super(key: key);
+  const AllUsersLocationWidget({super.key});
 
   @override
   State<AllUsersLocationWidget> createState() => _AllUsersLocationWidgetState();
@@ -117,11 +117,11 @@ class _AllUsersLocationWidgetState extends State<AllUsersLocationWidget> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _searchByBookingManIdRange,
-                  child: const Text('Search'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade600,
                     foregroundColor: Colors.white,
                   ),
+                  child: const Text('Search'),
                 ),
               ],
             ),
@@ -152,7 +152,7 @@ class _AllUsersLocationWidgetState extends State<AllUsersLocationWidget> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ..._allUsersLocations.map((userData) => _buildUserLocationCard(userData)).toList(),
+                  ..._allUsersLocations.map((userData) => _buildUserLocationCard(userData)),
                 ],
               ),
             

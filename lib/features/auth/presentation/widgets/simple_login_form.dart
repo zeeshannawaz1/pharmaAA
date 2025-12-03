@@ -9,7 +9,7 @@ import '../../../../core/utils/validators.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SimpleLoginForm extends StatefulWidget {
-  const SimpleLoginForm({Key? key}) : super(key: key);
+  const SimpleLoginForm({super.key});
 
   @override
   State<SimpleLoginForm> createState() => _SimpleLoginFormState();

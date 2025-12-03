@@ -7,12 +7,12 @@ class CategoryChips extends StatelessWidget {
   final Function(String) onCategorySelected;
 
   const CategoryChips({
-    Key? key,
+    super.key,
     required this.categories,
     required this.categoryNames,
     required this.selectedCategory,
     required this.onCategorySelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

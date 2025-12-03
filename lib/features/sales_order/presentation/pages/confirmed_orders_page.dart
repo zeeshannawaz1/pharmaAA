@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../../../main_screen.dart';
 
 class ConfirmedOrdersPage extends StatefulWidget {
-  const ConfirmedOrdersPage({Key? key}) : super(key: key);
+  const ConfirmedOrdersPage({super.key});
 
   @override
   State<ConfirmedOrdersPage> createState() => _ConfirmedOrdersPageState();
@@ -74,27 +75,34 @@ class _ConfirmedOrdersPageState extends State<ConfirmedOrdersPage> {
             return const Center(child: Text('No confirmed orders found.'));
           }
           final orders = snapshot.data!;
-          return ListView.separated(
-            itemCount: orders.length,
-            separatorBuilder: (_, __) => const Divider(),
-            itemBuilder: (context, i) {
-              final order = orders[i];
-              return ListTile(
-                leading: const Icon(Icons.check_circle, color: Colors.green),
-                title: Text('Order Ref: ${order['ORDER_REFRENCE'] ?? order['ORDNO'] ?? 'N/A'}'),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Client: ${order['CLIENTCODE'] ?? order['ClientCode'] ?? 'N/A'}'),
-                    Text('Product: ${order['PNAME'] ?? order['PName'] ?? 'N/A'}'),
-                    Text('Qty: ${order['QNTY'] ?? order['Qnty'] ?? 'N/A'}'),
-                    Text('Amount: ${order['AMOUNT'] ?? order['Amount'] ?? 'N/A'}'),
-                  ],
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.separated(
+                  itemCount: orders.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (context, i) {
+                    final order = orders[i];
+                    return ListTile(
+                      leading: const Icon(Icons.check_circle, color: Colors.green),
+                      title: Text('Order Ref: ${order['ORDER_REFRENCE'] ?? order['ORDNO'] ?? 'N/A'}'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Client: ${order['CLIENTCODE'] ?? order['ClientCode'] ?? 'N/A'}'),
+                          Text('Product: ${order['PNAME'] ?? order['PName'] ?? 'N/A'}'),
+                          Text('Qty: ${order['QNTY'] ?? order['Qnty'] ?? 'N/A'}'),
+                          Text('Amount: ${order['AMOUNT'] ?? order['Amount'] ?? 'N/A'}'),
+                        ],
+                      ),
+                      trailing: Text(order['BO_ID']?.toString() ?? order['id']?.toString() ?? ''),
+                      isThreeLine: true,
+                    );
+                  },
                 ),
-                trailing: Text(order['BO_ID']?.toString() ?? order['id']?.toString() ?? ''),
-                isThreeLine: true,
-              );
-            },
+              ),
+              const BannerAdWidget(),
+            ],
           );
         },
       ),

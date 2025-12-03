@@ -5,6 +5,7 @@ import '../bloc/order_draft_bloc.dart';
 import '../../domain/entities/order_draft.dart';
 import '../../../../injection_container.dart' as di;
 import '../../../../main_screen.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
@@ -20,7 +21,7 @@ import 'package:open_file/open_file.dart';
 import 'package:cross_file/cross_file.dart';
 
 class OrderDraftsPage extends StatefulWidget {
-  const OrderDraftsPage({Key? key}) : super(key: key);
+  const OrderDraftsPage({super.key});
 
   @override
   State<OrderDraftsPage> createState() => _OrderDraftsPageState();
@@ -30,8 +31,9 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
   String? _latestLog;
   String? _currentUserId;
   String? _currentBookingManId;
-  Set<String> _selectedDraftIds = {}; // Track selected drafts
+  final Set<String> _selectedDraftIds = {}; // Track selected drafts
   bool _isSelectionMode = false; // Track if we're in selection mode
+  int _previousDraftCount = 0; // Track previous draft count to detect clear action
 
   // Generate unique 8-digit BO ID for professional export
   static int generateUniqueBoId() {
@@ -128,6 +130,9 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
                       case 'export':
                         _exportAllPostedOrdersToCSV(context, context.read<OrderDraftBloc>());
                         break;
+                      case 'export_all':
+                        _exportAllExistingOrdersToCSV(context, context.read<OrderDraftBloc>());
+                        break;
                       case 'clear':
                         _clearExistingCSV(context);
                         break;
@@ -141,6 +146,16 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
                           Icon(Icons.file_download, color: Colors.blue),
                           SizedBox(width: 8),
                           Text('Export All Posted Orders'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'export_all',
+                      child: Row(
+                        children: [
+                          Icon(Icons.download, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Export All Existing Orders'),
                         ],
                       ),
                     ),
@@ -184,7 +199,7 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
           listener: (context, state) {
             state.maybeWhen(
               error: (message) {
-                _setLog('Error: ' + message);
+                _setLog('Error: $message');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(message),
@@ -196,10 +211,23 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
                 _setLog('Loading drafts...');
               },
               loaded: (drafts) {
-                if (drafts.isEmpty) {
+                // Check if drafts were cleared (went from non-empty to empty)
+                if (drafts.isEmpty && _previousDraftCount > 0) {
+                  _setLog('All drafts cleared successfully.');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ All drafts cleared successfully'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                  _previousDraftCount = 0;
+                } else if (drafts.isEmpty) {
                   _setLog('No drafts found.');
+                  _previousDraftCount = 0;
                 } else {
                   _setLog('Loaded ${drafts.length} drafts.');
+                  _previousDraftCount = drafts.length;
                 }
               },
               orElse: () {},
@@ -332,21 +360,15 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
                         FloatingActionButton(
                           onPressed: _exitSelectionMode,
                           backgroundColor: Colors.red,
-                          child: const Icon(Icons.close),
                           tooltip: 'Exit selection mode',
+                          child: const Icon(Icons.close),
                         ),
                       ],
                     ),
                   );
                 } else {
-                  // Normal mode - show selection button
-                  return FloatingActionButton.extended(
-                    onPressed: () => _enterSelectionMode(),
-                    backgroundColor: Colors.blue,
-                    icon: const Icon(Icons.select_all),
-                    label: const Text('Select Drafts'),
-                    tooltip: 'Select multiple drafts for bulk operations',
-                  );
+                  // Normal mode - no selection button
+                  return const SizedBox.shrink();
                 }
               },
               orElse: () => const SizedBox.shrink(),
@@ -362,12 +384,19 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reset Drafts'),
-        content: const Text(
-          'This will:\n'
-          '• Clear all existing drafts\n'
-          '• Reset the drafts page state\n'
-          '• Provide a clean testing environment\n\n'
-          'This action cannot be undone.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'This will:\n'
+              '• Clear all existing drafts\n'
+              '• Reset the drafts page state\n'
+              '• Provide a clean testing environment\n\n'
+              'This action cannot be undone.',
+            ),
+            const SizedBox(height: 16),
+            const BannerAdWidget(),
+          ],
         ),
         actions: [
           TextButton(
@@ -416,20 +445,40 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
   }
 
   void _showClearConfirmation(BuildContext context) {
+    // Capture the current draft count before showing dialog
+    final currentState = context.read<OrderDraftBloc>().state;
+    int currentDraftCount = 0;
+    currentState.maybeWhen(
+      loaded: (drafts) => currentDraftCount = drafts.length,
+      orElse: () => currentDraftCount = 0,
+    );
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Clear All Drafts'),
-        content: const Text('Are you sure you want to delete all order drafts? This action cannot be undone.'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Are you sure you want to delete all order drafts? This action cannot be undone.'),
+            const SizedBox(height: 16),
+            const BannerAdWidget(),
+          ],
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
+              // Set the previous count before clearing
+              setState(() {
+                _previousDraftCount = currentDraftCount;
+              });
+              // Use the original context, not dialogContext, to access the bloc
               context.read<OrderDraftBloc>().add(const OrderDraftEvent.clearDrafts());
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Clear All'),
@@ -528,6 +577,143 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
           duration: const Duration(seconds: 3),
         ),
       );
+    }
+  }
+
+  // Export all existing orders to CSV (no limit, includes posted and non-posted)
+  Future<void> _exportAllExistingOrdersToCSV(BuildContext context, OrderDraftBloc bloc) async {
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📊 Exporting all existing orders to CSV...'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Get all existing orders (no filter)
+      final allExistingOrders = await _getAllExistingOrders(context, bloc);
+      
+      if (allExistingOrders.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ℹ️ No orders found to export'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
+      // Create CSV content
+      final csvContent = _createCSVContent(allExistingOrders);
+      
+      // Get app documents directory
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final bbsdDir = Directory('${appDocDir.path}/BBSD');
+      
+      // Create BBSD directory if it doesn't exist
+      if (!await bbsdDir.exists()) {
+        await bbsdDir.create(recursive: true);
+      }
+      
+      // Create CSV file with timestamp to avoid overwriting
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final csvFile = File('${bbsdDir.path}/all_orders_$timestamp.csv');
+      
+      // Create new CSV file
+      await csvFile.writeAsString(csvContent);
+      print('✅ Created new CSV file: ${csvFile.path}');
+      
+      // Also copy to external storage for better sharing
+      await _copyToExternalStorage(csvFile.path, csvContent);
+      
+      // Show success message with View and Share buttons
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '✅ CSV exported successfully!',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text('📁 Location: ${csvFile.path}'),
+              Text('📊 ${allExistingOrders.length} order records exported'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'View & Share',
+            onPressed: () => _showViewAndShareOptions(context, csvFile.path, csvContent, allExistingOrders.length),
+          ),
+        ),
+      );
+      
+    } catch (e) {
+      print('Error exporting CSV: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error exporting CSV: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // Get all existing orders (no filter - includes posted and non-posted)
+  Future<List<Map<String, dynamic>>> _getAllExistingOrders(BuildContext context, OrderDraftBloc bloc) async {
+    try {
+      // Get all drafts from the provided bloc
+      final state = bloc.state;
+      List<OrderDraft> allDrafts = [];
+      
+      state.maybeWhen(
+        loaded: (drafts) => allDrafts = drafts,
+        orElse: () => allDrafts = [],
+      );
+      
+      print('Found ${allDrafts.length} total drafts (all orders)');
+      
+      // Debug: Show all drafts
+      for (final draft in allDrafts) {
+        print('Draft: ${draft.clientName}');
+        print('  - ID: ${draft.id}');
+        print('  - Created: ${draft.createdAt}');
+        print('  - Is Confirmed: ${draft.isConfirmedForProcessing}');
+        print('  - Items: ${draft.items.length}');
+        print('  - Export Data: ${draft.exportData?.length ?? 0} records');
+      }
+      
+      // No filtering - include ALL orders regardless of confirmation status
+      print('Including all ${allDrafts.length} orders (no filter applied)');
+      
+      // Generate export data for all orders
+      List<Map<String, dynamic>> exportData = [];
+      
+      for (final draft in allDrafts) {
+        if (draft.exportData != null && draft.exportData!.isNotEmpty && draft.isConfirmedForProcessing) {
+          // Use saved export data for confirmed orders
+          print('Using saved export data for ${draft.clientName}');
+          exportData.addAll(draft.exportData!);
+        } else {
+          // Generate new export data for non-confirmed orders or confirmed orders without saved data
+          print('Generating new export data for ${draft.clientName}');
+          final draftExportData = await _generateExportDataForDraft(draft);
+          exportData.addAll(draftExportData);
+        }
+      }
+      
+      print('Generated ${exportData.length} export records for all existing orders');
+      return exportData;
+      
+    } catch (e) {
+      print('Error in _getAllExistingOrders: $e');
+      rethrow;
     }
   }
 
@@ -780,6 +966,8 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
               'Choose an action:',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 16),
+            const BannerAdWidget(),
           ],
         ),
         actions: [
@@ -843,7 +1031,7 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
             ),
           ],
         ),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           height: 400,
           child: Column(
@@ -1278,19 +1466,15 @@ class _OrderDraftsPageState extends State<OrderDraftsPage> {
       );
       
       // Strategy 2: Search by product code if name search failed
-      if (selectedProduct == null) {
-        selectedProduct = availableProducts.firstWhereOrNull(
+      selectedProduct ??= availableProducts.firstWhereOrNull(
           (p) => p.pcode == item.productCode || p.pcode == item.prCode,
         );
-      }
       
       // Strategy 3: Search by partial name match if exact match failed
-      if (selectedProduct == null) {
-        selectedProduct = availableProducts.firstWhereOrNull(
+      selectedProduct ??= availableProducts.firstWhereOrNull(
           (p) => p.pname.toLowerCase().contains(item.productName.toLowerCase()) ||
                  item.productName.toLowerCase().contains(p.pname.toLowerCase()),
         );
-      }
       
       // If still not found, throw an error
       if (selectedProduct == null) {
@@ -1783,7 +1967,7 @@ class _LoadedViewState extends State<_LoadedView> {
                 headingRowHeight: 32,
                 dataRowHeight: 32,
                 horizontalMargin: 8,
-                headingRowColor: MaterialStateProperty.resolveWith<Color?>((states) => Colors.blue.shade100),
+                headingRowColor: WidgetStateProperty.resolveWith<Color?>((states) => Colors.blue.shade100),
                 columns: [
                   DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                   DataColumn(label: Text('Orders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
@@ -2206,12 +2390,96 @@ class _DraftCard extends StatelessWidget {
   }
 }
 
-class _DraftDetailsSheet extends StatelessWidget {
+class _DraftDetailsSheet extends StatefulWidget {
   final OrderDraft draft;
   final VoidCallback? onEdit;
   final BuildContext parentContext;
 
   const _DraftDetailsSheet({required this.draft, this.onEdit, required this.parentContext});
+
+  @override
+  State<_DraftDetailsSheet> createState() => _DraftDetailsSheetState();
+}
+
+class _DraftDetailsSheetState extends State<_DraftDetailsSheet> {
+  late OrderDraft _currentDraft;
+  final OfflineDatabaseService _databaseService = OfflineDatabaseService();
+  List<Product> _availableProducts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentDraft = widget.draft;
+    _loadProducts();
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      final products = await _databaseService.getOfflineProducts();
+      setState(() {
+        _availableProducts = products;
+      });
+    } catch (e) {
+      print('Error loading products: $e');
+    }
+  }
+
+  void _updateDraft(OrderDraft updatedDraft) {
+    final totalAmount = updatedDraft.items.fold(
+      0.0,
+      (sum, item) => sum + item.totalPrice,
+    );
+
+    final draftWithTotal = updatedDraft.copyWith(
+      totalAmount: totalAmount,
+      updatedAt: DateTime.now(),
+    );
+
+    setState(() {
+      _currentDraft = draftWithTotal;
+    });
+
+    // Auto-save after a short delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _saveDraft();
+      }
+    });
+  }
+
+  void _saveDraft() {
+    widget.parentContext.read<OrderDraftBloc>().add(
+      OrderDraftEvent.saveDraft(_currentDraft),
+    );
+  }
+
+  Future<void> _addProduct() async {
+    final result = await Navigator.push<List<OrderItem>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _ProductSelectionPage(
+          products: _availableProducts,
+        ),
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      final updatedItems = List<OrderItem>.from(_currentDraft.items)..addAll(result);
+      final updatedDraft = _currentDraft.copyWith(
+        items: updatedItems,
+        updatedAt: DateTime.now(),
+      );
+      _updateDraft(updatedDraft);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Added ${result.length} product(s)'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2226,7 +2494,7 @@ class _DraftDetailsSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: draft.isConfirmedForProcessing ? Colors.green[50] : Colors.blue[50],
+              color: _currentDraft.isConfirmedForProcessing ? Colors.green[50] : Colors.blue[50],
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Row(
@@ -2238,48 +2506,17 @@ class _DraftDetailsSheet extends StatelessWidget {
                       Row(
                     children: [
                       Text(
-                            draft.isConfirmedForProcessing ? 'Confirmed Order Details' : 'Draft Details',
+                            _currentDraft.isConfirmedForProcessing ? 'Confirmed Order Details' : 'Draft Details',
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                              color: draft.isConfirmedForProcessing ? Colors.green[800] : Colors.blue[900],
+                              color: _currentDraft.isConfirmedForProcessing ? Colors.green[800] : Colors.blue[900],
                         ),
                           ),
-                          // Hide the unique R-{ID} badge in the details modal
-                          // if (draft.isConfirmedForProcessing) ...[
-                          //   const SizedBox(width: 8),
-                          //   Container(
-                          //     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          //     decoration: BoxDecoration(
-                          //       color: Colors.green.shade100,
-                          //       borderRadius: BorderRadius.circular(12),
-                          //       border: Border.all(color: Colors.green.shade300),
-                          //     ),
-                          //     child: Row(
-                          //       mainAxisSize: MainAxisSize.min,
-                          //       children: [
-                          //         Icon(
-                          //           Icons.verified,
-                          //           size: 16,
-                          //           color: Colors.green.shade700,
-                          //         ),
-                          //         const SizedBox(width: 4),
-                          //         Text(
-                          //           'R-${draft.id.substring(0, 8).toUpperCase()}',
-                          //           style: TextStyle(
-                          //             fontSize: 12,
-                          //             fontWeight: FontWeight.w700,
-                          //             color: Colors.green.shade700,
-                          //           ),
-                          //         ),
-                          //       ],
-                          //     ),
-                          //   ),
-                          // ],
                         ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Created: ${DateFormat('MMM dd, yyyy HH:mm').format(draft.createdAt)}',
+                        'Created: ${DateFormat('MMM dd, yyyy HH:mm').format(_currentDraft.createdAt)}',
                         style: TextStyle(color: Colors.blue[700]),
                       ),
                     ],
@@ -2298,17 +2535,22 @@ class _DraftDetailsSheet extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _ClientSection(draft: draft),
+                  _ClientSection(draft: _currentDraft),
                   const SizedBox(height: 24),
-                  _ItemsSection(draft: draft),
-                  if (draft.notes != null && draft.notes!.isNotEmpty) ...[
+                  _EditableItemsSection(
+                    draft: _currentDraft,
+                    onDraftUpdated: _updateDraft,
+                    onAddProduct: _addProduct,
+                    isReadOnly: _currentDraft.isConfirmedForProcessing,
+                  ),
+                  if (_currentDraft.notes != null && _currentDraft.notes!.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    _NotesSection(notes: draft.notes!),
+                    _NotesSection(notes: _currentDraft.notes!),
                   ],
                   const SizedBox(height: 24),
-                  _TotalSection(total: draft.totalAmount),
+                  _TotalSection(total: _currentDraft.totalAmount),
                   const SizedBox(height: 24),
-                  _PostOrderSection(draft: draft, onEdit: onEdit, parentContext: parentContext), // pass parentContext
+                  _PostOrderSection(draft: _currentDraft, onEdit: widget.onEdit, parentContext: widget.parentContext),
                 ],
               ),
             ),
@@ -2347,10 +2589,28 @@ class _ClientSection extends StatelessWidget {
   }
 }
 
-class _ItemsSection extends StatelessWidget {
+class _EditableItemsSection extends StatelessWidget {
   final OrderDraft draft;
+  final Function(OrderDraft) onDraftUpdated;
+  final VoidCallback onAddProduct;
+  final bool isReadOnly;
 
-  const _ItemsSection({required this.draft});
+  const _EditableItemsSection({
+    required this.draft,
+    required this.onDraftUpdated,
+    required this.onAddProduct,
+    required this.isReadOnly,
+  });
+
+  void _deleteItem(int index) {
+    final updatedItems = List<OrderItem>.from(draft.items);
+    updatedItems.removeAt(index);
+    final updatedDraft = draft.copyWith(
+      items: updatedItems,
+      updatedAt: DateTime.now(),
+    );
+    onDraftUpdated(updatedDraft);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2375,6 +2635,13 @@ class _ItemsSection extends StatelessWidget {
                   labelStyle: TextStyle(color: Colors.blue[900]),
                   visualDensity: VisualDensity.compact,
                 ),
+                const Spacer(),
+                if (!isReadOnly)
+                  IconButton(
+                    icon: const Icon(Icons.add_circle, color: Colors.green),
+                    tooltip: 'Add Product',
+                    onPressed: onAddProduct,
+                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -2386,7 +2653,10 @@ class _ItemsSection extends StatelessWidget {
                 separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey[300]),
                 itemBuilder: (context, index) {
                   final item = draft.items[index];
-                  return _ItemRow(item: item);
+                  return _ItemRow(
+                    item: item,
+                    onDelete: !isReadOnly ? () => _deleteItem(index) : null,
+                  );
                 },
               ),
             ),
@@ -2399,8 +2669,9 @@ class _ItemsSection extends StatelessWidget {
 
 class _ItemRow extends StatelessWidget {
   final OrderItem item;
+  final VoidCallback? onDelete;
 
-  const _ItemRow({required this.item});
+  const _ItemRow({required this.item, this.onDelete});
 
   double _parsePercent(dynamic value) {
     if (value == null) return 0.0;
@@ -2425,23 +2696,27 @@ class _ItemRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
         ),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-          // Product name header
-          Text(
-            item.productName,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.blue.shade800,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          // Data row with columns
-            Row(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Product name header
+                Text(
+                  item.productName,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade800,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                // Data row with columns
+                Row(
+                  children: [
               // Qty
               Expanded(
                 flex: 1,
@@ -2483,7 +2758,7 @@ class _ItemRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${bonus.toStringAsFixed(1)}',
+                      bonus.toStringAsFixed(1),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -2509,7 +2784,7 @@ class _ItemRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${discount.toStringAsFixed(1)}',
+                      discount.toStringAsFixed(1),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -2581,6 +2856,17 @@ class _ItemRow extends StatelessWidget {
               ),
             ],
           ),
+                ],
+              ),
+            ),
+          if (onDelete != null)
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+              onPressed: onDelete,
+              tooltip: 'Delete item',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
         ],
       ),
     );
@@ -2737,7 +3023,7 @@ class _PostOrderSection extends StatelessWidget {
                             color: Colors.green.shade600,
                           ),
                         ),
-                      )).toList(),
+                      )),
                     ],
                   ),
                 ),
@@ -2757,77 +3043,8 @@ class _PostOrderSection extends StatelessWidget {
       );
     }
 
-    // Show action buttons for non-confirmed orders
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close the modal
-                  _showPostOrderConfirmation(context);
-                },
-                icon: const Icon(Icons.cloud_upload, color: Colors.white),
-                label: const Text(
-                  'Confirm Order',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 2,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop('edit'); // Close the modal and return 'edit'
-                  if (onEdit != null) onEdit!();
-                },
-                icon: const Icon(Icons.edit, color: Colors.white),
-                label: const Text(
-                  'Edit Order',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade600,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 2,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'This will confirm the order for processing and make it read-only',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
+    // For non-confirmed orders, return empty since button is now at top
+    return const SizedBox.shrink();
   }
 
   void _showPostOrderConfirmation(BuildContext context) {
@@ -3229,4 +3446,366 @@ class _EnhancedLoadingView extends StatelessWidget {
       ),
     );
   }
-} 
+}
+
+// Helper class to track pending products
+class _PendingProduct {
+  final Product product;
+  final double quantity;
+  final double discount;
+  final double bonus;
+
+  _PendingProduct({
+    required this.product,
+    required this.quantity,
+    required this.discount,
+    required this.bonus,
+  });
+}
+
+class _ProductSelectionPage extends StatefulWidget {
+  final List<Product> products;
+
+  const _ProductSelectionPage({required this.products});
+
+  @override
+  State<_ProductSelectionPage> createState() => _ProductSelectionPageState();
+}
+
+class _ProductSelectionPageState extends State<_ProductSelectionPage> {
+  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _qtyController = TextEditingController(text: '1');
+  final TextEditingController _discountController = TextEditingController(text: '0');
+  final TextEditingController _bonusController = TextEditingController(text: '0');
+  final FocusNode _qtyFocusNode = FocusNode();
+  Product? _selectedProduct;
+  List<Product> _filteredProducts = [];
+  List<_PendingProduct> _pendingProducts = []; // Track multiple products
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredProducts = widget.products;
+    _searchController.addListener(_filterProducts);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _qtyController.dispose();
+    _discountController.dispose();
+    _bonusController.dispose();
+    _qtyFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _filterProducts() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredProducts = widget.products.where((product) {
+        return product.pname.toLowerCase().contains(query) ||
+            product.pcode.toLowerCase().contains(query) ||
+            product.prcode.toLowerCase().contains(query);
+      }).toList();
+    });
+  }
+
+  void _addToPendingList() {
+    if (_selectedProduct == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Please select a product'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final quantity = double.tryParse(_qtyController.text) ?? 0.0;
+    if (quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Please enter a valid quantity'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final discount = double.tryParse(_discountController.text) ?? 0.0;
+    final bonus = double.tryParse(_bonusController.text) ?? 0.0;
+
+    setState(() {
+      _pendingProducts.add(_PendingProduct(
+        product: _selectedProduct!,
+        quantity: quantity,
+        discount: discount,
+        bonus: bonus,
+      ));
+      // Clear selection for next product
+      _selectedProduct = null;
+      _qtyController.text = '1';
+      _discountController.text = '0';
+      _bonusController.text = '0';
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ Added to list (${_pendingProducts.length} item(s))'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _removeFromPendingList(int index) {
+    setState(() {
+      _pendingProducts.removeAt(index);
+    });
+  }
+
+  void _confirmProduct() {
+    // If there's a selected product but not added to pending list, add it first
+    if (_selectedProduct != null) {
+      _addToPendingList();
+    }
+
+    if (_pendingProducts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Please add at least one product'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Convert all pending products to OrderItems
+    final List<OrderItem> orderItems = _pendingProducts.map((pending) {
+      final unitPrice = double.tryParse(pending.product.tprice) ?? 0.0;
+      final baseTotal = pending.quantity * unitPrice;
+      final discountAmount = baseTotal * (pending.discount / 100);
+      final bonusAmount = pending.bonus * unitPrice;
+      final totalPrice = baseTotal - discountAmount - bonusAmount;
+
+      return OrderItem(
+        id: '${DateTime.now().millisecondsSinceEpoch}_${pending.product.pcode}',
+        bmCode: 'SRC-1',
+        prCode: pending.product.prcode,
+        productId: pending.product.pcode,
+        productName: pending.product.pname,
+        productCode: pending.product.pcode,
+        unitPrice: unitPrice,
+        quantity: pending.quantity.toInt(),
+        totalPrice: totalPrice > 0 ? totalPrice : 0,
+        discount: pending.discount,
+        bonus: pending.bonus,
+        packing: pending.product.packing ?? 'Tab',
+      );
+    }).toList();
+
+    Navigator.of(context).pop(orderItems);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Product'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by name or code...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_selectedProduct != null) ...[
+              Card(
+                color: Colors.blue.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Selected: ${_selectedProduct!.pname}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _qtyController,
+                              focusNode: _qtyFocusNode,
+                              decoration: const InputDecoration(
+                                labelText: 'Quantity',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _discountController,
+                              decoration: const InputDecoration(
+                                labelText: 'Discount %',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _bonusController,
+                              decoration: const InputDecoration(
+                                labelText: 'Bonus',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: _addToPendingList,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add to List'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            // Show pending products list
+            if (_pendingProducts.isNotEmpty) ...[
+              Card(
+                color: Colors.green.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Pending Products',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 8),
+                          Chip(
+                            label: Text('${_pendingProducts.length}'),
+                            backgroundColor: Colors.green.shade100,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ..._pendingProducts.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final pending = entry.value;
+                        return ListTile(
+                          dense: true,
+                          title: Text(pending.product.pname),
+                          subtitle: Text(
+                            'Qty: ${pending.quantity.toInt()} | '
+                            'Dis: ${pending.discount}% | '
+                            'Bon: ${pending.bonus}',
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _removeFromPendingList(index),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Expanded(
+              child: _filteredProducts.isEmpty
+                  ? const Center(child: Text('No products found'))
+                  : ListView.builder(
+                      itemCount: _filteredProducts.length,
+                      itemBuilder: (context, index) {
+                        final product = _filteredProducts[index];
+                        final isSelected = _selectedProduct?.pcode == product.pcode;
+                        final price = double.tryParse(product.tprice) ?? 0.0;
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          color: isSelected ? Colors.blue.shade50 : null,
+                          child: ListTile(
+                            title: Text(product.pname),
+                            subtitle: Text(
+                              'Code: ${product.pcode} | Price: ${price.toStringAsFixed(0)}',
+                            ),
+                            trailing: isSelected
+                                ? const Icon(Icons.check_circle, color: Colors.green)
+                                : const Icon(Icons.add_circle),
+                            onTap: () {
+                              setState(() {
+                                _selectedProduct = product;
+                                _qtyController.text = '1';
+                                _discountController.text = '0';
+                                _bonusController.text = '0';
+                              });
+                              // Move focus to quantity field after product selection
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _qtyFocusNode.requestFocus();
+                                // Select all text for easy editing
+                                _qtyController.selection = TextSelection(
+                                  baseOffset: 0,
+                                  extentOffset: _qtyController.text.length,
+                                );
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _confirmProduct,
+                  child: Text(_pendingProducts.isEmpty 
+                    ? 'Add Product' 
+                    : 'Add All Products (${_pendingProducts.length})'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

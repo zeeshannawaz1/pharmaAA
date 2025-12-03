@@ -5,9 +5,10 @@ import '../../../../features/sales_order/domain/entities/order_draft.dart';
 import '../../../../features/sales_order/domain/usecases/get_order_drafts.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../../../injection_container.dart' as di;
+import '../../../../main_screen.dart';
 
 class InsightsPage extends StatefulWidget {
-  const InsightsPage({Key? key}) : super(key: key);
+  const InsightsPage({super.key});
 
   @override
   State<InsightsPage> createState() => _InsightsPageState();
@@ -204,6 +205,9 @@ class _InsightsPageState extends State<InsightsPage> {
                   
                   // Action Buttons
                   _buildActionButtons(),
+                  
+                  const SizedBox(height: 16),
+                  const BannerAdWidget(),
                 ],
               ),
             ),
@@ -642,7 +646,7 @@ class _InsightsPageState extends State<InsightsPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              value: _selectedPeriod,
+              initialValue: _selectedPeriod,
               decoration: const InputDecoration(labelText: 'Time Period'),
               items: _periods.map((period) => DropdownMenuItem(
                 value: period,
@@ -656,7 +660,7 @@ class _InsightsPageState extends State<InsightsPage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedFilter,
+              initialValue: _selectedFilter,
               decoration: const InputDecoration(labelText: 'Filter Type'),
               items: _filters.map((filter) => DropdownMenuItem(
                 value: filter,
@@ -734,7 +738,7 @@ class _InsightsPageState extends State<InsightsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('$featureName'),
+        title: Text(featureName),
         content: Text('$featureName feature is coming soon!'),
         actions: [
           TextButton(

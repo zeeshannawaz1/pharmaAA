@@ -13,7 +13,7 @@ class DailyReportRemoteDataSourceImpl implements DailyReportRemoteDataSource {
   @override
   Future<List<DailyReportModel>> fetchDailyReports({required String date, required String prcode, required String prgcode}) async {
     final response = await http.get(Uri.parse('$baseUrl/getDailySSR.php?p_date=$date&p_prcode=$prcode&p_prgcode=$prgcode'));
-    print('DailyReport API response: ' + response.body);
+    print('DailyReport API response: ${response.body}');
     if (response.statusCode == 200) {
       final body = response.body.trim();
       if (body.isEmpty || body.startsWith('<')) {

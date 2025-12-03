@@ -9,13 +9,13 @@ class ProductCard extends StatelessWidget {
   final VoidCallback? onFavoriteToggle;
 
   const ProductCard({
-    Key? key,
+    super.key,
     required this.product,
     required this.onTap,
     this.isListView = false,
     this.isFavorite = false,
     this.onFavoriteToggle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

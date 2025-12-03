@@ -9,7 +9,7 @@ import '../../presentation/bloc/products_bloc.dart';
 import '../../presentation/bloc/products_event.dart';
 
 class ProductsLayoutSelector extends StatelessWidget {
-  const ProductsLayoutSelector({Key? key}) : super(key: key);
+  const ProductsLayoutSelector({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -5,9 +5,9 @@ class ReportDetailsModal extends StatelessWidget {
   final DailyReport report;
 
   const ReportDetailsModal({
-    Key? key,
+    super.key,
     required this.report,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

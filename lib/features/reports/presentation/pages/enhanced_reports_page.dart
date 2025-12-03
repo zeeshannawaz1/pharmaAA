@@ -13,9 +13,10 @@ import 'widgets/report_chart_widget.dart';
 import 'widgets/report_details_modal.dart';
 import 'widgets/category_performance_widget.dart';
 import 'widgets/top_products_widget.dart';
+import '../../../../main_screen.dart';
 
 class EnhancedReportsPage extends StatefulWidget {
-  const EnhancedReportsPage({Key? key}) : super(key: key);
+  const EnhancedReportsPage({super.key});
 
   @override
   State<EnhancedReportsPage> createState() => _EnhancedReportsPageState();
@@ -197,7 +198,7 @@ class _EnhancedReportsPageState extends State<EnhancedReportsPage>
                     Column(
                       children: [
                         DropdownButtonFormField<String>(
-                          value: _selectedPeriod,
+                          initialValue: _selectedPeriod,
                           decoration: InputDecoration(
                             labelText: 'Period',
                             border: OutlineInputBorder(
@@ -216,7 +217,7 @@ class _EnhancedReportsPageState extends State<EnhancedReportsPage>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: _selectedReportType,
+                          initialValue: _selectedReportType,
                           decoration: InputDecoration(
                             labelText: 'Report Type',
                             border: OutlineInputBorder(
@@ -248,6 +249,7 @@ class _EnhancedReportsPageState extends State<EnhancedReportsPage>
                       : _buildRealApiContent(),
                 ),
               ),
+              const BannerAdWidget(),
             ],
           ),
         ),

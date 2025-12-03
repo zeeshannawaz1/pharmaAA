@@ -10,7 +10,7 @@ class ReportSummaryCard extends StatelessWidget {
   final bool isPositive;
 
   const ReportSummaryCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.subtitle,
@@ -18,7 +18,7 @@ class ReportSummaryCard extends StatelessWidget {
     required this.color,
     required this.trend,
     required this.isPositive,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

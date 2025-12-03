@@ -1,4 +1,3 @@
-import '../entities/client.dart';
 import '../../data/repositories/clients_repository_impl.dart';
 
 class GetAreas {
